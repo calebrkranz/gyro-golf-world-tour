@@ -9,6 +9,12 @@ Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion control
 - Play **Moon Golf**, **Mega Cup Mayhem**, and **Bounce Blitz** as local party modes.
 - Standard Stroke Play and the online room system retain their established physics and controller behavior.
 
+### Control Fix 1
+
+- Corrects a high-DPI resize loop that could make phyphox club movement appear to run at only a few frames per second.
+- Gives the phone/club rig render priority while the ball is at address and limits simulated trajectory rebuilds to 10 Hz during a swing.
+- Makes Mega Cup a visible 5.6× opening, gives Bounce Blitz a dedicated seven-bounce reaction, and gives Moon Golf a complete lunar sky and course palette.
+
 ## Deploy on Render
 
 1. Upload every file in this project to the root of your GitHub repository.

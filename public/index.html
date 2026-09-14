@@ -1844,7 +1844,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Party Pack 1</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Party Pack 1 · Control Fix 1</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1872,7 +1872,7 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · PARTY PACK 1</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · PARTY PACK 1 · CONTROL FIX 1</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>40 hole architectures</span>
@@ -2589,7 +2589,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-party1-online7';
+  const DEBUG_VERSION='v107-party1-controlfix1-online7';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -2984,6 +2984,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     tropical:{id:'tropical',name:'Tropical',skyTop:0x42a9cf,skyBottom:0xd3f4df,fog:0xb8e2d5,rough:0x176b43,grass:0x218a4e,fairway:0x5dc462,green:0x84da6c,water:0x168fb2,sand:0xf2dc9d,scene:'coastal'},
     alpine:{id:'alpine',name:'Alpine',skyTop:0x4e7fb4,skyBottom:0xe2eef4,fog:0xc9d9df,rough:0x214532,grass:0x315f40,fairway:0x5b9457,green:0x78b66b,water:0x367993,sand:0xd8c7a1,scene:'forest'},
     links:{id:'links',name:'Links',skyTop:0x638eae,skyBottom:0xd8e4d4,fog:0xc3d0c3,rough:0x4b6036,grass:0x657745,fairway:0x819654,green:0x91b363,water:0x3d788e,sand:0xd7c58e,scene:'open'}
+  };
+  const MOON_MODE_THEME={
+    name:'Lunar',
+    skyTop:0x050817,
+    skyBottom:0x171d3a,
+    fog:0x141a34,
+    rough:0x4a5060,
+    grass:0x626a79,
+    fairway:0x8792a6,
+    green:0xa7b7bd,
+    water:0x172548,
+    sand:0xb9b6aa
   };
   HOLE_THEMES.push(...Object.values(COURSE_BIOMES));
 
@@ -8410,24 +8422,24 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     if(currentGameModeId==='moon'){
-      modeDistanceMultiplier=1.08;
-      modeGravityMultiplier=.48;
-      modeBounceMultiplier=1.24;
-      modeCupMultiplier=1.18;
+      modeDistanceMultiplier=.96;
+      modeGravityMultiplier=.38;
+      modeBounceMultiplier=1.38;
+      modeCupMultiplier=1.35;
     }
 
     if(currentGameModeId==='mega'){
       modeDistanceMultiplier=1.04;
-      modeCupMultiplier=2.35;
+      modeCupMultiplier=5.60;
       modeGreenHoldMultiplier=1.12;
     }
 
     if(currentGameModeId==='bounce'){
-      modeBounceMultiplier=1.72;
-      modeFairwayFrictionMultiplier=.76;
-      modeRoughFrictionMultiplier=.84;
-      modeGreenHoldMultiplier=.62;
-      modeCupMultiplier=1.28;
+      modeBounceMultiplier=2.70;
+      modeFairwayFrictionMultiplier=.58;
+      modeRoughFrictionMultiplier=.66;
+      modeGreenHoldMultiplier=.28;
+      modeCupMultiplier=1.45;
     }
 
     if(currentGameModeId==='chaos'){
@@ -14045,12 +14057,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   // v95: 2.15 DPR was rendering millions of unnecessary pixels on
   // high-resolution desktops. 1.70 remains crisp while freeing substantial
   // GPU time for the controller/club animation.
-  renderer.setPixelRatio(
-    Math.min(
-      devicePixelRatio,
-      1.35
-    )
-  );
+  const NORMAL_RENDER_PIXEL_RATIO=Math.min(devicePixelRatio,1.35);
+  const PHONE_RENDER_PIXEL_RATIO=Math.min(devicePixelRatio,.90);
+  let activeRenderPixelRatio=NORMAL_RENDER_PIXEL_RATIO;
+  renderer.setPixelRatio(activeRenderPixelRatio);
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.shadowMap.autoUpdate=false;
@@ -14158,6 +14168,42 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     })
   );
   scene.add(skyDome);
+
+  // One draw call for the stars and two for the distant ringed planet. The
+  // group is only visible in Moon Golf and contains no animated particles.
+  const moonSpaceGroup=new THREE.Group();
+  const moonStarPositions=[];
+  for(let i=0;i<220;i++){
+    const a=i*2.399963;
+    const radius=620+(i*37%190);
+    const y=55+(i*83%455);
+    moonStarPositions.push(Math.cos(a)*radius,y,Math.sin(a)*radius);
+  }
+  const moonStarGeometry=new THREE.BufferGeometry();
+  moonStarGeometry.setAttribute('position',new THREE.Float32BufferAttribute(moonStarPositions,3));
+  const moonStars=new THREE.Points(
+    moonStarGeometry,
+    new THREE.PointsMaterial({color:0xffffff,size:2.6,sizeAttenuation:true,transparent:true,opacity:.92,depthWrite:false,fog:false})
+  );
+  const moonPlanet=new THREE.Mesh(
+    new THREE.SphereGeometry(82,28,18),
+    new THREE.MeshBasicMaterial({color:0x8b78d4,fog:false,depthWrite:false})
+  );
+  moonPlanet.position.set(-300,235,-610);
+  const moonPlanetRing=new THREE.Mesh(
+    new THREE.TorusGeometry(116,4.2,8,64),
+    new THREE.MeshBasicMaterial({color:0xe2c9ff,transparent:true,opacity:.72,fog:false,depthWrite:false})
+  );
+  moonPlanetRing.position.copy(moonPlanet.position);
+  moonPlanetRing.rotation.set(1.12,.12,.28);
+  const moonEarth=new THREE.Mesh(
+    new THREE.SphereGeometry(34,22,14),
+    new THREE.MeshBasicMaterial({color:0x54a9e8,fog:false,depthWrite:false})
+  );
+  moonEarth.position.set(310,175,-560);
+  moonSpaceGroup.add(moonStars,moonPlanet,moonPlanetRing,moonEarth);
+  moonSpaceGroup.visible=false;
+  scene.add(moonSpaceGroup);
 
   const camera=new THREE.PerspectiveCamera(46,1,.1,1200);
   camera.position.set(0,5.6,181);
@@ -14704,7 +14750,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   function buildCourseTerrain(){
     clearCourseTerrain();
 
-    const theme=currentHole.theme||HOLE_THEMES[0];
+    const moonMode=currentGameModeId==='moon';
+    const theme=moonMode
+      ? MOON_MODE_THEME
+      : (currentHole.theme||HOLE_THEMES[0]);
 
     // Keep the exact route samples ready for both minimap and visual terrain.
     currentRouteSamples=sampleRoutePolyline(currentHole.route,8);
@@ -15635,7 +15684,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     };
 
     const innerRadius=
-      CUP_VISUAL_RADIUS*1.12;
+      CUP_VISUAL_RADIUS*1.12*modeCupMultiplier;
 
     const verts=[];
     const colors=[];
@@ -25245,8 +25294,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function resize(){
     const rect=canvas.getBoundingClientRect();
-    const w=Math.max(1,Math.floor(rect.width*devicePixelRatio));
-    const h=Math.max(1,Math.floor(rect.height*devicePixelRatio));
+    // Compare against the renderer's ACTUAL capped ratio. Using the raw
+    // devicePixelRatio here caused setSize() to run every frame on high-DPI
+    // displays, which could make phyphox club motion look like 3 FPS.
+    const w=Math.max(1,Math.floor(rect.width*activeRenderPixelRatio));
+    const h=Math.max(1,Math.floor(rect.height*activeRenderPixelRatio));
     if(canvas.width!==w||canvas.height!==h){
       renderer.setSize(rect.width,rect.height,false);
       camera.aspect=rect.width/rect.height;
@@ -26091,13 +26143,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const mousePreviewActive=mouseAimEnabled && !connected && gameStarted;
     const simulatedPreview=activeSwing || mousePreviewActive;
 
-    // Active swing runs every animation frame. A stationary mouse preview is
-    // cached more aggressively; dragging the aim or power control forces an
-    // immediate rebuild without taxing swing-frame performance.
+    // The 44-step flight simulation is useful feedback, but rebuilding it on
+    // every render frame competes directly with phone-driven club motion.
+    // Ten previews per second still looks live while leaving 60 FPS available
+    // for the authoritative controller and club rig.
+    const previewIntervalMs=(activeSwing&&connected)
+      ? 100
+      : (mousePreviewActive?90:33);
     if(
       !force &&
-      !activeSwing &&
-      previewNow-lastTrajectoryPreviewMs<(mousePreviewActive?90:33)
+      previewNow-lastTrajectoryPreviewMs<previewIntervalMs
     ){
       return;
     }
@@ -26755,9 +26810,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       return;
     }
 
-    startAmbientBirdSound();
-    if(ambientBirdMedia){
-      ambientBirdMedia.volume=swingPerformanceActive()?.025:.10;
+    // A lunar course should sound empty and distant, not like the clubhouse.
+    // Keeping the bird loop stopped also removes one more media update from the
+    // phone-priority render path while Moon Golf is active.
+    if(currentGameModeId==='moon'){
+      stopAmbientBirdSound();
+    }else{
+      startAmbientBirdSound();
+      if(ambientBirdMedia){
+        ambientBirdMedia.volume=phoneInputPriorityActive()?.025:.10;
+      }
     }
 
     const info=
@@ -26780,7 +26842,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       if(ambientWaterMedia){
         ambientWaterMedia.volume=clamp(
-          (.018+proximity*.19)*(swingPerformanceActive()?.18:1),
+          (.018+proximity*.19)*(phoneInputPriorityActive()?.18:1),
           0,.24
         );
       }
@@ -30001,15 +30063,22 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     skyUniforms.bottomColor.value.setHex(theme.skyBottom);
     skyUniforms.horizonColor.value
       .setHex(theme.skyBottom)
-      .lerp(new THREE.Color(0xffe7bd),.38);
+      .lerp(new THREE.Color(moonMode?0x5262a5:0xffe7bd),moonMode?.16:.38);
+    skyUniforms.horizonStrength.value=moonMode?.10:.42;
+    skyUniforms.sunStrength.value=moonMode?.12:.74;
+    skyUniforms.hazeStrength.value=moonMode?.035:.18;
+    moonSpaceGroup.visible=moonMode;
 
     // Slightly vary daylight tone with each visual theme.
     const themeSky=new THREE.Color(theme.skyTop);
     hemi.color.copy(themeSky).lerp(new THREE.Color(0xffffff),.62);
     hemi.groundColor.copy(new THREE.Color(theme.rough).multiplyScalar(.72));
+    hemi.intensity=moonMode?1.20:2.15;
+    sun.intensity=moonMode?1.55:3.45;
     coolFill.color.copy(themeSky).lerp(new THREE.Color(0xa8d8ff),.60);
+    coolFill.intensity=moonMode?.72:.62;
     greenFillLight.color.copy(new THREE.Color(theme.green).lerp(new THREE.Color(0xffffff),.62));
-    greenFillLight.intensity=.40;
+    greenFillLight.intensity=moonMode?.62:.40;
 
     const accentForLight=new THREE.Color(courseAccent());
     warmRim.color
@@ -30111,6 +30180,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     cupRim.visible=
       !drivingRange;
+
+    // Scale the physical-looking liner as well as the top disc/rim. Mega Cup
+    // must read as a genuinely giant opening from every camera angle.
+    cup.scale.set(modeCupMultiplier,1,modeCupMultiplier);
+    cupLiner.scale.set(modeCupMultiplier,1,modeCupMultiplier);
+    cupMouth.scale.setScalar(modeCupMultiplier);
+    cupRim.scale.setScalar(modeCupMultiplier);
 
     flagPole.visible=
       !drivingRange;
@@ -30852,7 +30928,24 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
           return;
         }
 
-        if(lie==='Bunker'){
+        if(
+          currentGameModeId==='bounce' &&
+          lie!=='Bunker' &&
+          selected!=='PT' &&
+          landingVertical>1.0 &&
+          bounceCount<7
+        ){
+          // Bounce Blitz has its own deliberately exaggerated restitution.
+          // This branch comes before normal green/fairway reactions so the
+          // mode cannot silently collapse back into ordinary golf physics.
+          const restitution=Math.max(.38,.76-bounceCount*.055);
+          ballVel.y=Math.min(15.5,landingVertical*restitution);
+          ballVel.x*=.90;
+          ballVel.z*=.90;
+          bounceCount++;
+          ballState='flight';
+          spawnSurfaceImpactFX(lie,ball.position,1.35);
+        }else if(lie==='Bunker'){
           ballVel.y=0;
           ballVel.x*=.20;
           ballVel.z*=.20;
@@ -33137,8 +33230,27 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     );
   }
 
+  function phoneInputPriorityActive(){
+    return !!(
+      connected &&
+      ballState==='rest' &&
+      !holeComplete &&
+      onlineCanControlTurn()
+    );
+  }
+
   function updatePerformancePriority(now){
     const swinging=swingPerformanceActive();
+    const phonePriority=phoneInputPriorityActive();
+    const inputPriority=swinging||phonePriority;
+
+    const desiredPixelRatio=phonePriority
+      ? PHONE_RENDER_PIXEL_RATIO
+      : NORMAL_RENDER_PIXEL_RATIO;
+    if(Math.abs(activeRenderPixelRatio-desiredPixelRatio)>.001){
+      activeRenderPixelRatio=desiredPixelRatio;
+      renderer.setPixelRatio(activeRenderPixelRatio);
+    }
 
     // Hysteresis keeps the richer idle scenery on capable hardware, but
     // automatically drops only the optional polygon layer if a slower device
@@ -33162,13 +33274,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     // Cosmetic only; core course + water remain visible.
-    waterSparkleGroup.visible=!swinging;
+    waterSparkleGroup.visible=!inputPriority;
     performanceDetailGroup.visible=
-      !swinging &&
+      !inputPriority &&
       !cosmeticDetailReduced;
-    courseDecorGroup.visible=!swinging;
+    courseDecorGroup.visible=!inputPriority;
 
-    if(swinging){
+    if(inputPriority){
       windStreakLines.visible=false;
 
     }else if(
@@ -33180,7 +33292,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // Freeze shadow-map work completely for the sub-second swing. The club,
     // ball and trajectory get the GPU instead.
     if(
-      !swinging &&
+      !inputPriority &&
       now-lastShadowRefreshMs>=120
     ){
       lastShadowRefreshMs=now;

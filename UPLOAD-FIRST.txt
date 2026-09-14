@@ -27,3 +27,7 @@ share Player 1's phone.
 PARTY PACK 1 adds cosmetic horse, dragon, and giant-turtle mounts plus Moon
 Golf, Mega Cup Mayhem, and Bounce Blitz. The party modes are local-only; the
 working Online Fix 7 room and phyphox controller path remain unchanged.
+
+CONTROL FIX 1 corrects the high-DPI resize loop and gives phone input priority
+over optional scenery and trajectory calculations. It also makes all three
+party modes visually and physically unmistakable.
