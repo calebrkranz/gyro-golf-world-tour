@@ -112,6 +112,10 @@ function cleanControllerKey(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9.:/_-]/g, "").slice(0, 180);
 }
 
+function cleanDeviceId(value) {
+  return String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80);
+}
+
 function attachPlayer(socket, room, player) {
   if (socket.data.roomCode && socket.data.roomCode !== room.code) {
     socket.leave(socket.data.roomCode);
@@ -182,9 +186,14 @@ io.on("connection", (socket) => {
     try {
       const code = newCode();
       const token = crypto.randomUUID();
+      const deviceId = cleanDeviceId(payload?.deviceId);
+      if (!deviceId) {
+        return acknowledge(callback, { ok: false, error: "This browser needs a computer ID. Refresh the new game build." });
+      }
       const player = {
         index: 0,
         token,
+        deviceId,
         name: cleanName(payload?.name, "Player 1"),
         socketId: socket.id,
         connected: true,
@@ -222,11 +231,19 @@ io.on("connection", (socket) => {
     if (room.players.length >= ROOM_LIMIT) {
       return acknowledge(callback, { ok: false, error: "That room is full." });
     }
+    const deviceId = cleanDeviceId(payload?.deviceId);
+    if (!deviceId) {
+      return acknowledge(callback, { ok: false, error: "This browser needs a computer ID. Refresh the new game build." });
+    }
+    if (room.players.some((player) => player.deviceId === deviceId)) {
+      return acknowledge(callback, { ok: false, error: "This computer already owns a player in that room. Join from the other computer." });
+    }
     const index = room.players.length;
     const token = crypto.randomUUID();
     const player = {
       index,
       token,
+      deviceId,
       name: cleanName(payload?.name, `Player ${index + 1}`),
       socketId: socket.id,
       connected: true,
@@ -242,7 +259,10 @@ io.on("connection", (socket) => {
   socket.on("room:resume", (payload, callback) => {
     const code = cleanCode(payload?.code);
     const room = rooms.get(code);
-    const player = room?.players.find((item) => item.token === payload?.token);
+    const deviceId = cleanDeviceId(payload?.deviceId);
+    const player = room?.players.find((item) =>
+      item.token === payload?.token && item.deviceId === deviceId
+    );
     if (!room || !player) {
       return acknowledge(callback, { ok: false, error: "Saved room expired." });
     }
@@ -278,6 +298,9 @@ io.on("connection", (socket) => {
     const player = room?.players[socket.data.playerIndex];
     if (!room || !player) {
       return acknowledge(callback, { ok: false, error: "Join an online room first." });
+    }
+    if (!player.deviceId || player.deviceId !== cleanDeviceId(payload?.deviceId)) {
+      return acknowledge(callback, { ok: false, error: "This phone claim belongs to a different computer." });
     }
     const controllerKey = cleanControllerKey(payload?.controllerKey);
     if (!controllerKey) {

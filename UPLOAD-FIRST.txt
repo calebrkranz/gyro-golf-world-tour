@@ -17,3 +17,9 @@ and click Download Phone-Compatible Game. Open that downloaded HTML on each
 computer, enter that player's phyphox IP, and connect. The Render URL is saved
 into the downloaded copy automatically. Everyone can watch the active player's
 live swing and ball flight, but only that player can launch the shot.
+
+IMPORTANT MULTIPLAYER NOTE
+Upload BOTH public/index.html and server.js from this package. The client now
+routes Start Game through the online room and the server locks each player to a
+unique browser and phone. Blank local phone rows use mouse controls; they never
+share Player 1's phone.

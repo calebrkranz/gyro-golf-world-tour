@@ -1794,6 +1794,9 @@ label.message{display:block;margin-top:9px}
   .mouseShotControls.show{animation:none}
 }
 .onlineLobby{margin:12px 0 14px;padding:14px;border:1px solid #b8cfbc;border-radius:15px;background:linear-gradient(135deg,#f6fbf4,#e5f2e7);box-shadow:inset 0 1px 0 #fff}
+.playConnectionMode{display:flex;align-items:center;gap:10px;margin:0 0 11px;padding:10px 12px;border-radius:11px;background:#fff4cf;border:1px solid #dfbd58;color:#60470c;font-size:10px;line-height:1.35}
+.playConnectionMode strong{font-size:11px;font-weight:1000;white-space:nowrap}
+.playConnectionMode.online{background:#dff6e3;border-color:#68bd78;color:#155c2a}
 .onlineLobbyHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
 .onlineLobbyTitle{font-size:13px;font-weight:1000;color:#173b27;letter-spacing:.04em;text-transform:uppercase}
 .onlineLobbyBadge{padding:5px 9px;border-radius:999px;background:#d8e5d9;color:#45604b;font-size:9px;font-weight:1000}
@@ -1835,7 +1838,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 6</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1863,7 +1866,7 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 6</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>40 hole architectures</span>
@@ -2033,9 +2036,10 @@ label.message{display:block;margin-top:9px}
 
       <div id="onlineLobby" class="onlineLobby">
         <div class="onlineLobbyHead">
-          <div class="onlineLobbyTitle">🌐 Online Room <span style="font-size:9px;color:#68806d">· optional</span></div>
+          <div class="onlineLobbyTitle">🌐 Online Room <span style="font-size:9px;color:#68806d">· required for different computers</span></div>
           <div id="onlineLobbyBadge" class="onlineLobbyBadge">OFFLINE</div>
         </div>
+        <div id="playConnectionMode" class="playConnectionMode"><strong>LOCAL PASS-AND-PLAY</strong><span>Players share this computer only. Create or join a room to watch live play on different computers.</span></div>
         <div class="onlineLobbyGrid">
           <input id="onlinePlayerName" maxlength="18" placeholder="Your online name" value="Player 1" aria-label="Online player name">
           <input id="onlineRoomCodeInput" class="onlineCodeInput" maxlength="6" placeholder="ROOM CODE" aria-label="Online room code">
@@ -2043,7 +2047,7 @@ label.message{display:block;margin-top:9px}
           <button id="onlineJoinBtn" class="secondary" type="button">Join Room</button>
           <input id="onlineServerUrl" style="grid-column:1/-1" placeholder="Online server URL · automatic when playing on Render" aria-label="Online server URL">
         </div>
-        <div id="onlineLobbyStatus" class="onlineLobbyStatus">Create a room, share its six-character code, then start Stroke Play or Island Hopper. Same-Wi-Fi computers use a direct live link automatically. Give every phone a different phyphox IP.</div>
+        <div id="onlineLobbyStatus" class="onlineLobbyStatus">Create a room on one computer and join its six-character code on every other computer. Each computer enters only its own phone IP.</div>
         <div id="onlineRoster" class="onlineRoster"></div>
         <button id="onlineLeaveBtn" class="secondary" type="button" style="display:none;margin-top:10px">Leave Online Room</button>
       </div>
@@ -2421,7 +2425,7 @@ label.message{display:block;margin-top:9px}
       <div class="controllerSetup">
         <div class="controllerSetupHead">
           <b>Multiplayer phones</b>
-          <span>Each player can use a different phyphox IP. Blank players automatically share Player 1's phone.</span>
+          <span>Every phone is locked to one player. A blank player uses mouse controls and never shares another player's phone.</span>
         </div>
         <div id="controllerRows" class="controllerRows"></div>
         <button id="connectAllPhones" class="secondary" style="width:100%">Check All Player Phones</button>
@@ -2562,7 +2566,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107';
+  const DEBUG_VERSION='v107-online6';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -2681,6 +2685,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
             playerIndex:onlineSession.playerIndex,
             activeIndex:onlineSession.activeIndex,
             roomStatus:onlineSession.status,
+            deviceTag:ONLINE_DEVICE_ID.slice(-8),
+            controllerSlot:activeControllerSlot,
             directPeers:onlineDirectPeerCount(),
             remoteLiveActive:onlineRemoteLive.active,
             remoteTransport:onlineRemoteLive.transport,
@@ -8573,6 +8579,21 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   // that owns the active player can launch a shot; completed shot state is
   // then replicated to every other browser in the room.
   const ONLINE_STORAGE_KEY='gyroGolfOnlineRoomV1';
+  const ONLINE_DEVICE_STORAGE_KEY='gyroGolfOnlineDeviceV1';
+  function loadOnlineDeviceId(){
+    try{
+      let id=String(localStorage.getItem(ONLINE_DEVICE_STORAGE_KEY)||'').trim();
+      if(!id){
+        id=globalThis.crypto?.randomUUID?.()||
+          `gyro-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,12)}`;
+        localStorage.setItem(ONLINE_DEVICE_STORAGE_KEY,id);
+      }
+      return id.slice(0,80);
+    }catch(_){
+      return `gyro-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,12)}`;
+    }
+  }
+  const ONLINE_DEVICE_ID=loadOnlineDeviceId();
   const onlineSession={
     socket:null,
     code:'',
@@ -8923,6 +8944,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const leave=$('onlineLeaveBtn');
     const codeInput=$('onlineRoomCodeInput');
     const serverInput=$('onlineServerUrl');
+    const connectionMode=$('playConnectionMode');
     if(!badge || !roster) return;
 
     badge.textContent=joined?`ROOM ${onlineSession.code}`:'OFFLINE';
@@ -8932,6 +8954,12 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     codeInput.disabled=joined;
     if(serverInput) serverInput.disabled=joined;
     leave.style.display=joined?'inline-block':'none';
+    if(connectionMode){
+      connectionMode.classList.toggle('online',joined);
+      connectionMode.innerHTML=joined
+        ? `<strong>ONLINE PLAYER ${onlineSession.playerIndex+1}</strong><span>This computer owns only ${escapeUiText(onlineSession.players?.[onlineSession.playerIndex]?.name||'your player')}. Live swings and every player's ball are synchronized.</span>`
+        : '<strong>LOCAL PASS-AND-PLAY</strong><span>Players share this computer only. Create or join a room to watch live play on different computers.</span>';
+    }
 
     roster.innerHTML=onlineSession.players.map(player=>
       `<span class="onlinePlayer${player.connected?' connected':''}${player.index===onlineSession.playerIndex?' me':''}">`+
@@ -8945,7 +8973,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       $('startGameBtn').disabled=!host || onlineSession.players.length<2 || onlineSession.players.some(p=>!p.connected);
       codeInput.value=onlineSession.code;
     }else{
-      $('startGameBtn').textContent='Start Game';
+      $('startGameBtn').textContent=startPlayerCount>1?'Start Local Pass-and-Play':'Start Game';
       $('startGameBtn').disabled=false;
     }
   }
@@ -9029,7 +9057,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
     const name=($('onlinePlayerName').value||'Player 1').trim();
     onlineSetStatus('Creating room…');
-    onlineSession.socket.emit('room:create',{name},onlineAdoptRoom);
+    onlineSession.socket.emit('room:create',{name,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
   }
 
   function onlineJoinRoom(){
@@ -9044,7 +9072,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       return;
     }
     onlineSetStatus('Joining room…');
-    onlineSession.socket.emit('room:join',{name,code},onlineAdoptRoom);
+    onlineSession.socket.emit('room:join',{name,code,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
   }
 
   function onlineLeaveRoom(notifyServer=true,message='Offline play restored. Create or join a room whenever you want.'){
@@ -9099,7 +9127,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       const timeout=setTimeout(()=>{
         resolve({ok:false,error:'The online server is outdated or did not answer the controller check. Upload the new server.js to GitHub.'});
       },3500);
-      onlineSession.socket.emit('controller:claim',{controllerKey},result=>{
+      onlineSession.socket.emit('controller:claim',{controllerKey,deviceId:ONLINE_DEVICE_ID},result=>{
         clearTimeout(timeout);
         resolve(result||{ok:false,error:'Controller ownership check timed out.'});
       });
@@ -9325,6 +9353,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         : (yours?`YOUR TURN · swing when ready${liveLink}`:`WATCHING ${String(active?.name||'PLAYER').toUpperCase()}${liveLink}`);
     }
     if(!yours){
+      // A spectator must not keep polling its own phone while another browser
+      // owns the turn. Otherwise local sensor poses can overwrite the incoming
+      // live golfer animation and make one controller appear to move both players.
+      suspendControllerForOnlineSpectator();
       cancelAutoArm();
       armed=false;
       $('swingState').textContent='ONLINE · WAITING';
@@ -9365,7 +9397,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       try{
         const saved=JSON.parse(localStorage.getItem(ONLINE_STORAGE_KEY)||'null');
         if(saved?.code && saved?.token){
-          socket.emit('room:resume',saved,result=>{
+          socket.emit('room:resume',{...saved,deviceId:ONLINE_DEVICE_ID},result=>{
             if(result?.ok){
               onlineAdoptRoom(result);
               if(result.room?.round) onlineBeginSyncedGame(result.room);
@@ -12685,12 +12717,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   function controllerSlotForPlayer(index=currentPlayerIndex){
     // Each online browser uses its own locally configured phone. Player 2 on
     // the server is not Player 2 in this browser's local phone list.
-    if(onlineGameActive()) return 0;
-    return playerControllerUrls[index]?index:0;
+    if(onlineInRoom()) return 0;
+    // Local multiplayer is also identity-bound. A blank Player 2/3/4 slot is
+    // mouse-only; it must never inherit Player 1's sensor stream.
+    return clamp(Number(index)||0,0,3);
   }
 
   function activeControllerBase(){
-    return playerControllerUrls[activeControllerSlot]||playerControllerUrls[0]||DEFAULT_CONTROLLER_URL;
+    return playerControllerUrls[activeControllerSlot]||'';
   }
 
   function renderControllerRows(){
@@ -12699,8 +12733,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const controllerIndexes=onlineInRoom()?[0]:[0,1,2,3];
     root.innerHTML=controllerIndexes.map(i=>{
       const state=playerControllerStates[i];
-      const shared=i>0&&!playerControllerUrls[i];
-      const label=state.online?'LIVE':(state.error?'RETRY':(shared?'P1 SHARED':'CHECK'));
+      const mouseOnly=!playerControllerUrls[i];
+      const label=state.online?'LIVE':(state.error?'RETRY':(mouseOnly?'MOUSE':'CHECK'));
       const stateClass=state.online?' live':(state.error?' bad':'');
       const active=i===controllerSlotForPlayer(currentPlayerIndex)?' active':'';
       const onlinePlayer=onlineSession.players?.[onlineSession.playerIndex];
@@ -12708,7 +12742,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         ? (onlinePlayer?.name||`Player ${onlineSession.playerIndex+1}`)
         : (players?.[i]?.name||`Player ${i+1}`);
       const rowLabel=onlineInRoom()?`THIS PC · ${playerName}`:`P${i+1} · ${playerName}`;
-      return `<div class="controllerRow${active}" data-controller-row="${i}"><span class="controllerPlayer">${escapeUiText(rowLabel)}</span><input class="controllerUrl" data-controller-url="${i}" type="text" value="${escapeUiText(playerControllerUrls[i])}" placeholder="${i===0?'192.168.1.202':'Blank = share P1'}" aria-label="${escapeUiText(playerName)} phyphox IP address" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"><button class="controllerState${stateClass}" data-connect-controller="${i}" type="button">${label}</button></div>`;
+      return `<div class="controllerRow${active}" data-controller-row="${i}"><span class="controllerPlayer">${escapeUiText(rowLabel)}</span><input class="controllerUrl" data-controller-url="${i}" type="text" value="${escapeUiText(playerControllerUrls[i])}" placeholder="${i===0?'192.168.1.202':'Phone IP or blank = mouse'}" aria-label="${escapeUiText(playerName)} phyphox IP address" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"><button class="controllerState${stateClass}" data-connect-controller="${i}" type="button">${label}</button></div>`;
     }).join('');
 
     root.querySelectorAll('[data-controller-url]').forEach(input=>{
@@ -12726,10 +12760,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         playerControllerStates[i].error='';
         savePlayerControllerUrls();
         renderControllerRows();
-        if(
-          currentPlayerIndex===i ||
-          (i===0&&!playerControllerUrls[currentPlayerIndex])
-        ) switchControllerForPlayer(currentPlayerIndex,true);
+        if(currentPlayerIndex===i || (onlineInRoom()&&i===0)){
+          switchControllerForPlayer(currentPlayerIndex,true);
+        }
       });
     });
 
@@ -12771,17 +12804,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     const url=playerControllerUrls[slot];
     if(!url){
-      $('status').textContent=`No phyphox address saved for Player ${index+1}`;
-      $('status').className='status bad';
+      sensorFallbackActive=true;
+      syncMouseAimUI();
+      $('status').textContent=`Player ${index+1} has no phone assigned · mouse controls only`;
+      $('status').className='status ready';
       return;
     }
 
-    const shared=!onlineGameActive() && slot!==index;
-    $('status').textContent=onlineGameActive()
+    $('status').textContent=onlineInRoom()
       ? `Connecting this computer's phone for ${activePlayer().name}…`
-      : (shared
-          ? `Player ${index+1} uses Player 1's phone · pass the controller`
-          : `Switching to Player ${index+1}'s phone…`);
+      : `Switching to Player ${index+1}'s phone…`;
     $('status').className='status ready';
     connectPhone(index,{turnSwitch:true});
   }
@@ -18571,13 +18603,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     for(let i=0;i<otherPlayerBalls.length;i++){
       const visual=otherPlayerBalls[i];
       const player=players[i];
-      const state=player?.holeStates?.[currentHoleIndex];
+      const state=player&&gameStarted
+        ? ensurePlayerHoleState(player,currentHoleIndex)
+        : null;
       const show=!!(
         gameStarted &&
         playerCount>1 &&
         i!==currentPlayerIndex &&
         state &&
-        !state.finished &&
         Number.isFinite(state.x) &&
         Number.isFinite(state.z)
       );
@@ -30981,8 +31014,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(activeRequest) activeControllerSlot=slot;
 
     if(!base){
-      $('status').textContent=`Enter a phyphox IP for Player ${playerIndex+1}`;
-      $('status').className='status bad';
+      if(activeRequest){
+        connected=false;
+        sensorFallbackActive=true;
+        syncMouseAimUI();
+      }
+      $('status').textContent=`Player ${playerIndex+1} is mouse-only · enter a phyphox IP to assign a phone`;
+      $('status').className='status ready';
       return false;
     }
 
@@ -31051,10 +31089,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         // Some phyphox builds may already be running and reject/ignore start.
       }
 
-      const shared=!onlineGameActive() && slot!==playerIndex;
-      $('status').textContent=shared
-        ? `Player ${playerIndex+1} sharing Player 1 phone · hold address still for 2 seconds`
-        : `${onlineGameActive()?'This computer':`Player ${playerIndex+1}`} connected · hold address still for 2 seconds`;
+      $('status').textContent=`${onlineInRoom()?'This computer':`Player ${playerIndex+1}`} connected · hold address still for 2 seconds`;
       $('status').className='status ready';
       $('connect').textContent='Reconnect';$('startSensor').disabled=false;$('arm').disabled=false;$('calibrateClub').disabled=false;
       renderControllerRows();
@@ -33276,6 +33311,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     btn.addEventListener('click',()=>{
       startPlayerCount=Number(btn.dataset.startCount);
       renderStartNames();
+      onlineRenderLobby();
     });
   });
 
@@ -33319,7 +33355,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     startOpeningMusic();
     playMenuClick();
   },true);
-  $('startGameBtn').addEventListener('click',beginGameFromStart);
+  // This must route through the room-aware dispatcher. Calling
+  // beginGameFromStart directly silently created a local pass-and-play match
+  // even while the browser appeared to be inside an online room.
+  $('startGameBtn').addEventListener('click',onlineStartRequested);
 
   document.querySelectorAll('[data-player-count]').forEach(btn=>btn.addEventListener('click',()=>setPlayerCount(Number(btn.dataset.playerCount))));
 

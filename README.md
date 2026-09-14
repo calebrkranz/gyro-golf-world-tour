@@ -34,8 +34,10 @@ The game runs locally for smooth swing input while only turn results travel thro
 ## Online play notes
 
 - Online rooms support **Stroke Play** and **Island Hopper**.
-- Each computer can connect to its own phyphox phone or use mouse controls.
+- Each computer owns exactly one online player and connects only that player's phyphox phone. A persistent browser ID and room token prevent one computer from claiming another player's controller.
+- In local pass-and-play, every player also has an isolated phone slot. Leaving a slot blank makes that player mouse-only; Player 1's phone is never shared automatically.
 - The host starts the round and advances after everyone finishes each hole.
 - Every spectator sees the active player's live club motion and ball flight. Only the active player's browser can detect impact or submit the shot.
+- Every resting player ball remains visible on the course between turns.
 - Courses are deterministic: every player receives the same seed and generated layout.
 - Rooms are kept in memory. A free Render service can sleep or restart, which clears active rooms; create a new room if that happens.
