@@ -13,8 +13,9 @@ GYRO GOLF WORLD TOUR — NEXT STEPS
 
 PHONE CONTROL NOTE
 Click Connect Phone and ALLOW Chrome's local-network permission. The controller
-now preserves every new timestamped phyphox sample, even when Wi-Fi requests
-finish slowly. If the hosted page still blocks the local HTTP phone, open
+uses timestamp batches when the experiment supports them and automatically
+falls back to stable latest-value polling when custom buffers do not. If the
+hosted page still blocks the local HTTP phone, open
 Settings and click Download Phone-Compatible Game. The Render URL is saved into
 that copy automatically.
 
@@ -44,3 +45,8 @@ ONLINE FIX 9 adds full-rate batched phyphox samples, smoother live spectators,
 online mount/appearance synchronization, and an online lobby that shows only
 Stroke Play, Island Hopper, and Party Wheel. Cherry Blossom, Volcanic, and
 Aurora Night bring the Course Designer to eight world themes.
+
+CONTROLLER FIX 10 repairs the single-player phyphox regression from Online Fix
+9. A controller that cannot serve thresholded buffers now switches immediately
+to the original latest-value request instead of appearing live once and then
+being disconnected by the stale-phone watchdog.

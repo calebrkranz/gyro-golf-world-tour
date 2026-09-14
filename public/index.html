@@ -1863,7 +1863,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 9 · Full-Rate Phyphox</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Controller Fix 10 · Stable Phyphox</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1891,7 +1891,7 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 9 · FULL-RATE PHYPhOX</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · CONTROLLER FIX 10 · STABLE PHYPhOX</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>43 hole architectures</span>
@@ -2628,7 +2628,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-phyphox-batch-online-mounts-themes9';
+  const DEBUG_VERSION='v107-phyphox-dual-path-controller-fix10';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -2826,6 +2826,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         valid:sensorValidPackets,
         empty:sensorEmptyPackets,
         networkErrors:sensorNetworkErrors,
+        mode:sensorPollingMode,
+        thresholdMisses:sensorThresholdMisses,
+        latestFallbacks:sensorLatestFallbacks,
         lastBatchSize:sensorLastBatchSize,
         maxBatchSize:sensorMaxBatchSize,
         errorStreak:pollErrorStreak,
@@ -13103,6 +13106,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   let sensorNetworkErrors=0;
   let sensorLastBatchSize=0;
   let sensorMaxBatchSize=0;
+  let sensorPollingMode='auto';
+  let sensorThresholdMisses=0;
+  let sensorLatestFallbacks=0;
   let lastValidSensorPacketMs=0;
   let lastSensorSourceTime=null;
   let sensorRecoveryBusy=false;
@@ -13228,6 +13234,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     calibrationSamples=[];
     calibrationAccelSamples=[];
     lastSensorSourceTime=null;
+    sensorPollingMode='auto';
+    sensorThresholdMisses=0;
     lastValidSensorPacketMs=performance.now();
     attitudeRelativeTarget.identity();
     attitudeRelativeSmooth.identity();
@@ -31820,21 +31828,25 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     return Array.isArray(values)?values:[];
   }
 
-  function buildSensorQuery(){
+  function buildSensorQuery(forceLatest=false){
     const names=[buffers.x,buffers.y,buffers.z,buffers.w,buffers.t]
       .filter(Boolean);
 
-    if(!buffers.t || !Number.isFinite(lastSensorSourceTime)){
+    if(forceLatest || !buffers.t || !Number.isFinite(lastSensorSourceTime)){
       return names.map(encodeURIComponent).join('&');
     }
 
     const threshold=String(lastSensorSourceTime);
-    return names.map(name=>{
-      const selector=name===buffers.t
-        ? threshold
-        : `${threshold}|${buffers.t}`;
-      return `${encodeURIComponent(name)}=${encodeURIComponent(selector)}`;
-    }).join('&');
+    // phyphox documents the monotonic reference first. Some custom
+    // experiments only retain a single calculated quaternion and do not
+    // support threshold retrieval at all, so pollSensors can automatically
+    // fall back to the proven latest-value request after this capability probe.
+    return [
+      `${encodeURIComponent(buffers.t)}=${encodeURIComponent(threshold)}`,
+      ...names
+        .filter(name=>name!==buffers.t)
+        .map(name=>`${encodeURIComponent(name)}=${encodeURIComponent(`${threshold}|${buffers.t}`)}`)
+    ].join('&');
   }
 
   function unpackSensorFrames(data,receivedAt){
@@ -32719,14 +32731,42 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       performance.now();
 
     try{
-      const qs=buildSensorQuery();
-      const received=await getJSON('/get?'+qs,pollBase);
+      const canTryBatch=(
+        sensorPollingMode!=='latest' &&
+        !!buffers.t &&
+        Number.isFinite(lastSensorSourceTime)
+      );
+      const qs=buildSensorQuery(!canTryBatch);
+      let received=await getJSON('/get?'+qs,pollBase);
 
       // A late response from the previous player's phone must never feed the
       // next player's swing state after a multiplayer turn change.
       if(pollGeneration!==controllerGeneration) return;
 
-      const sensorFrames=unpackSensorFrames(received,performance.now());
+      let sensorFrames=unpackSensorFrames(received,performance.now());
+
+      // The custom Gyro Golf controller can expose a valid timestamp while
+      // storing only the latest calculated quaternion. On those buffers a
+      // threshold request succeeds over HTTP but returns empty arrays forever.
+      // Detect that response on the first attempt and permanently use the
+      // latest-value endpoint for this connection. This keeps single-player
+      // live instead of tripping the stale-phone watchdog after five seconds.
+      if(canTryBatch && !sensorFrames.length){
+        sensorThresholdMisses++;
+        const latest=await getJSON('/get?'+buildSensorQuery(true),pollBase);
+        if(pollGeneration!==controllerGeneration) return;
+        sensorFrames=unpackSensorFrames(latest,performance.now());
+        sensorPollingMode='latest';
+        sensorLatestFallbacks++;
+        recordDebugEvent('sensor-latest-fallback',{
+          thresholdMisses:sensorThresholdMisses,
+          receivedFrames:sensorFrames.length
+        });
+      }else if(canTryBatch && sensorFrames.length){
+        sensorPollingMode='batch';
+        sensorThresholdMisses=0;
+      }
+
       sensorLastBatchSize=sensorFrames.length;
       sensorMaxBatchSize=Math.max(sensorMaxBatchSize,sensorFrames.length);
       if(!sensorFrames.length){

@@ -2,9 +2,16 @@
 
 Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
 
+## Controller Fix 10
+
+- Fixes the single-player regression where custom phyphox buffers connected, produced one orientation, then returned empty threshold reads until the game falsely disconnected the phone.
+- Uses a dual polling path: timestamped batch retrieval when the experiment supports it and immediate latest-value compatibility polling when it does not.
+- Requests the phyphox timestamp reference before its paired quaternion buffers, matching the documented remote-interface order.
+- The stale-phone watchdog now receives fresh compatibility samples instead of kicking a working controller to mouse mode.
+
 ## Online Fix 9
 
-- Phyphox polling now requests and processes every new timestamped phone sample instead of discarding all but the last sample in each Wi-Fi response. Swing motion stays high-rate even when HTTP requests finish slowly.
+- Phyphox polling processes every new timestamped phone sample when supported, while Controller Fix 10 automatically preserves the proven latest-value path for custom single-value experiments.
 - Chrome's Local Network Access permission is requested explicitly from the hosted HTTPS game; the downloadable local copy remains available as a fallback.
 - Same-Wi-Fi live view sends direct snapshots at roughly 40 Hz, with a roughly 20-25 Hz Render relay and short visual prediction to remove spectator stutter.
 - Character appearance and horse, dragon, or turtle mounts now synchronize for every online player.
