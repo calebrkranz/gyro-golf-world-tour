@@ -12,11 +12,11 @@ GYRO GOLF WORLD TOUR — NEXT STEPS
    to Player 2.
 
 PHONE CONTROL NOTE
-If the hosted HTTPS page blocks the local HTTP phyphox address, open Settings
-and click Download Phone-Compatible Game. Open that downloaded HTML on each
-computer, enter that player's phyphox IP, and connect. The Render URL is saved
-into the downloaded copy automatically. Everyone can watch the active player's
-live swing and ball flight, but only that player can launch the shot.
+Click Connect Phone and ALLOW Chrome's local-network permission. The controller
+now preserves every new timestamped phyphox sample, even when Wi-Fi requests
+finish slowly. If the hosted page still blocks the local HTTP phone, open
+Settings and click Download Phone-Compatible Game. The Render URL is saved into
+that copy automatically.
 
 IMPORTANT MULTIPLAYER NOTE
 Upload BOTH public/index.html and server.js from this package. The client now
@@ -39,3 +39,8 @@ hole during scene setup and leave only the interface over a blue background.
 PHYPHOX PRIORITY suspends minimap, scenery traversal, mounts, optional detail,
 water sparkle, and shadow refresh while a connected phone is waiting or
 swinging. Controller polling remains at the established 25 ms target.
+
+ONLINE FIX 9 adds full-rate batched phyphox samples, smoother live spectators,
+online mount/appearance synchronization, and an online lobby that shows only
+Stroke Play, Island Hopper, and Party Wheel. Cherry Blossom, Volcanic, and
+Aurora Night bring the Course Designer to eight world themes.

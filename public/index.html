@@ -1553,6 +1553,12 @@ label.message{display:block;margin-top:9px}
 .gameModeCard[data-game-mode="coin"] .modeIcon{background:linear-gradient(145deg,#ffd95b,#b97908)}
 .gameModeCard[data-game-mode="party"]{--mode:#e34887}
 .gameModeCard[data-game-mode="party"] .modeIcon{background:linear-gradient(145deg,#ff6fa9,#863dd1)}
+.gameModeGrid.onlineOnly{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gameModeGrid.onlineOnly .gameModeCard{display:none}
+.gameModeGrid.onlineOnly .gameModeCard[data-game-mode="stroke"],
+.gameModeGrid.onlineOnly .gameModeCard[data-game-mode="island"],
+.gameModeGrid.onlineOnly .gameModeCard[data-game-mode="party"]{display:grid}
+.startCount.onlineLocked{display:none}
 .modeIcon{
   grid-row:1 / span 2;width:50px;height:50px;margin:0;border-radius:14px;display:grid;place-items:center;
   background:var(--mode);color:#fff;font-size:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 5px 12px rgba(0,0,0,.13)
@@ -1857,12 +1863,12 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Party Pack 2 · Phyphox Priority</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 9 · Full-Rate Phyphox</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
       <div class="worldTourFacts" aria-label="Game features">
-        <span>43 Hole Architectures</span><span>5 World Biomes</span><span>1–4 Players</span><span>Motion Controlled</span>
+        <span>43 Hole Architectures</span><span>8 World Themes</span><span>1–4 Players</span><span>Motion Controlled</span>
       </div>
     </div>
     <div class="worldTourVisual" aria-hidden="true">
@@ -1885,11 +1891,11 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · PARTY PACK 2 · PHYPhOX PRIORITY</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 9 · FULL-RATE PHYPhOX</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>43 hole architectures</span>
-        <span>5 world biomes</span>
+        <span>8 world themes</span>
         <span>Seeded courses</span>
         <span>1–4 players</span>
       </div>
@@ -2035,6 +2041,9 @@ label.message{display:block;margin-top:9px}
               <option value="tropical">Tropical</option>
               <option value="alpine">Alpine</option>
               <option value="links">Links</option>
+              <option value="cherry">Cherry Blossom</option>
+              <option value="volcanic">Volcanic</option>
+              <option value="aurora">Aurora Night</option>
             </select>
           </div>
           <div class="customField">
@@ -2464,8 +2473,8 @@ label.message{display:block;margin-top:9px}
         <button id="fullscreenBtn" class="secondary">Enter Fullscreen</button>
       </div>
       <div id="phoneBridgeNotice" class="phoneBridgeNotice">
-        <b>Phone connection needs the local game copy</b>
-        A secure hosted page can be blocked from reading an HTTP phyphox phone on your Wi-Fi. Download this phone-compatible copy on each player's computer; it remembers this online server automatically.
+        <b>Allow local-network access for phyphox</b>
+        Chrome should ask permission when you connect. Choose <b>Allow</b>. If the browser still blocks the HTTP phone, use this local copy on each player's computer; it remembers the online server automatically.
         <button id="downloadLocalController" type="button">Download Phone-Compatible Game</button>
       </div>
       <div class="controllerSetup">
@@ -2619,7 +2628,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-party2-phyphox-priority-online8';
+  const DEBUG_VERSION='v107-phyphox-batch-online-mounts-themes9';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -2817,6 +2826,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         valid:sensorValidPackets,
         empty:sensorEmptyPackets,
         networkErrors:sensorNetworkErrors,
+        lastBatchSize:sensorLastBatchSize,
+        maxBatchSize:sensorMaxBatchSize,
         errorStreak:pollErrorStreak,
         recoveryCount:sensorRecoveryCount,
         hardRefreshCount:sensorHardRefreshCount,
@@ -3013,7 +3024,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     autumn:{id:'autumn',name:'Autumn',skyTop:0x668bb3,skyBottom:0xeac99e,fog:0xcbbba6,rough:0x5e5430,grass:0x68733c,fairway:0x87944b,green:0x94ae58,water:0x397a91,sand:0xd8b77a,scene:'forest'},
     tropical:{id:'tropical',name:'Tropical',skyTop:0x42a9cf,skyBottom:0xd3f4df,fog:0xb8e2d5,rough:0x176b43,grass:0x218a4e,fairway:0x5dc462,green:0x84da6c,water:0x168fb2,sand:0xf2dc9d,scene:'coastal'},
     alpine:{id:'alpine',name:'Alpine',skyTop:0x4e7fb4,skyBottom:0xe2eef4,fog:0xc9d9df,rough:0x214532,grass:0x315f40,fairway:0x5b9457,green:0x78b66b,water:0x367993,sand:0xd8c7a1,scene:'forest'},
-    links:{id:'links',name:'Links',skyTop:0x638eae,skyBottom:0xd8e4d4,fog:0xc3d0c3,rough:0x4b6036,grass:0x657745,fairway:0x819654,green:0x91b363,water:0x3d788e,sand:0xd7c58e,scene:'open'}
+    links:{id:'links',name:'Links',skyTop:0x638eae,skyBottom:0xd8e4d4,fog:0xc3d0c3,rough:0x4b6036,grass:0x657745,fairway:0x819654,green:0x91b363,water:0x3d788e,sand:0xd7c58e,scene:'open'},
+    cherry:{id:'cherry',name:'Cherry Blossom',skyTop:0x8d8bd1,skyBottom:0xffd8df,fog:0xe9c6d6,rough:0x613d5a,grass:0x7b5673,fairway:0xb88ca8,green:0xd3a7bd,water:0x4b91bd,sand:0xf2d7c7,scene:'forest'},
+    volcanic:{id:'volcanic',name:'Volcanic',skyTop:0x301a27,skyBottom:0xe56f3f,fog:0x815041,rough:0x282529,grass:0x403a32,fairway:0x686242,green:0x8b8c55,water:0xd94724,sand:0xb89062,scene:'open'},
+    aurora:{id:'aurora',name:'Aurora Night',skyTop:0x081634,skyBottom:0x31556f,fog:0x263d58,rough:0x173f4a,grass:0x17615d,fairway:0x2e9385,green:0x62c7a8,water:0x4d4f9d,sand:0x9fb9b0,scene:'forest'}
   };
   const MOON_MODE_THEME={
     name:'Lunar',
@@ -8927,6 +8941,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     swingPhase:'ADDRESS',
     swingDeg:0,
     faceDeg:0,
+    swingRateDegS:0,
+    faceRateDegS:0,
     targetPosition:new THREE.Vector3(),
     targetVelocity:new THREE.Vector3(),
     predictedPosition:new THREE.Vector3(),
@@ -8971,6 +8987,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineRemoteLive.swingPhase='ADDRESS';
     onlineRemoteLive.swingDeg=0;
     onlineRemoteLive.faceDeg=0;
+    onlineRemoteLive.swingRateDegS=0;
+    onlineRemoteLive.faceRateDegS=0;
     onlineRemoteLive.lastPacketMs=0;
     onlineRemoteLive.lastSequence=-1;
     onlineRemoteLive.transport='none';
@@ -9111,7 +9129,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function onlineBroadcastLiveShot(now=performance.now(),force=false){
     if(!onlineGameActive() || !onlineCanControlTurn()) return;
-    if(!force && now-onlineLastLiveEmitMs<32) return;
+    if(!force && now-onlineLastLiveEmitMs<24) return;
 
     const ballMoving=ballState==='flight' || ballState==='roll' || ballState==='cup';
     const swinging=swingPerformanceActive() || contactPending || mouseSwingActive;
@@ -9145,7 +9163,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // not on the same LAN or whose browser blocks a direct data channel.
     if(
       onlineSession.socket?.connected &&
-      (force || !directSent || now-onlineLastSocketLiveEmitMs>=110)
+      (force || !directSent || now-onlineLastSocketLiveEmitMs>=48)
     ){
       onlineLastSocketLiveEmitMs=now;
       onlineSession.socket.emit('shot:live',payload);
@@ -9161,12 +9179,33 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(Number.isFinite(sequence) && sequence<=onlineRemoteLive.lastSequence) return;
     if(Number.isFinite(sequence)) onlineRemoteLive.lastSequence=sequence;
 
+    const arrivedAt=performance.now();
+    const packetDt=onlineRemoteLive.lastPacketMs
+      ? clamp((arrivedAt-onlineRemoteLive.lastPacketMs)/1000,.008,.4)
+      : 0;
+    const nextSwingDeg=Number(event.swingDeg)||0;
+    const nextFaceDeg=Number(event.faceDeg)||0;
+    if(packetDt>0){
+      const swingRate=dataAngleDelta(nextSwingDeg,onlineRemoteLive.swingDeg)/packetDt;
+      const faceRate=dataAngleDelta(nextFaceDeg,onlineRemoteLive.faceDeg)/packetDt;
+      onlineRemoteLive.swingRateDegS=THREE.MathUtils.lerp(
+        onlineRemoteLive.swingRateDegS,
+        clamp(swingRate,-1000,1000),
+        .62
+      );
+      onlineRemoteLive.faceRateDegS=THREE.MathUtils.lerp(
+        onlineRemoteLive.faceRateDegS,
+        clamp(faceRate,-500,500),
+        .55
+      );
+    }
+
     onlineRemoteLive.active=true;
     onlineRemoteLive.kind=event.kind||'address';
     onlineRemoteLive.ballState=event.ballState||'rest';
     onlineRemoteLive.swingPhase=event.swingPhase||'ADDRESS';
-    onlineRemoteLive.swingDeg=Number(event.swingDeg)||0;
-    onlineRemoteLive.faceDeg=Number(event.faceDeg)||0;
+    onlineRemoteLive.swingDeg=nextSwingDeg;
+    onlineRemoteLive.faceDeg=nextFaceDeg;
     onlineRemoteLive.targetPosition.set(
       Number(event.position?.x)||0,
       Number(event.position?.y)||0,
@@ -9177,7 +9216,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       Number(event.velocity?.y)||0,
       Number(event.velocity?.z)||0
     );
-    onlineRemoteLive.lastPacketMs=performance.now();
+    onlineRemoteLive.lastPacketMs=arrivedAt;
     onlineRemoteLive.transport=event.transport||'render-relay';
 
     const active=onlineSession.players[onlineSession.activeIndex];
@@ -9223,7 +9262,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // serializes a tiny visual snapshot; physics and contact remain local.
     onlineLiveTimer=setInterval(
       ()=>onlineBroadcastLiveShot(performance.now()),
-      32
+      24
     );
   }
 
@@ -9258,7 +9297,15 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const codeInput=$('onlineRoomCodeInput');
     const serverInput=$('onlineServerUrl');
     const connectionMode=$('playConnectionMode');
+    const modeGrid=$('gameModeGrid');
+    const playerCountPicker=document.querySelector('.startCount');
     if(!badge || !roster) return;
+
+    modeGrid?.classList.toggle('onlineOnly',joined);
+    playerCountPicker?.classList.toggle('onlineLocked',joined);
+    if(joined && !['stroke','island','party'].includes(startGameModeId)){
+      selectStartGameMode('stroke');
+    }
 
     badge.textContent=joined?`ROOM ${onlineSession.code}`:'OFFLINE';
     badge.classList.toggle('live',joined);
@@ -9333,11 +9380,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(gameStarted){
       onlineSession.players.forEach(remote=>{
         const local=players[remote.index];
-        if(!local || !remote.scores) return;
-        Object.entries(remote.scores).forEach(([hole,score])=>{
-          local.scores[Number(hole)]=Number(score);
-        });
+        if(!local) return;
+        if(remote.appearance){
+          Object.assign(local,remote.appearance);
+          local.color=local.shirtColor;
+        }
+        if(remote.scores){
+          Object.entries(remote.scores).forEach(([hole,score])=>{
+            local.scores[Number(hole)]=Number(score);
+          });
+        }
       });
+      applyActivePlayerAppearance();
       if(Array.isArray(room.turnStates) && room.holeIndex===currentHoleIndex){
         room.turnStates.forEach(item=>{
           const local=players[item.playerIndex];
@@ -9354,6 +9408,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       onlineSession.players.forEach((player,index)=>{
         const input=rows[index]?.querySelector('.startNameInput');
         if(input) input.value=player.name;
+        if(player.appearance) setStartRowLook(rows[index],player.appearance,index);
       });
       const mine=onlineSession.players[onlineSession.playerIndex];
       if(mine && $('onlinePlayerName')) $('onlinePlayerName').value=mine.name;
@@ -9369,8 +9424,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       return;
     }
     const name=($('onlinePlayerName').value||'Player 1').trim();
+    const firstRow=$('startNames')?.querySelector('.startPlayerRow');
+    const appearance=startRowLook(firstRow,0);
     onlineSetStatus('Creating room…');
-    onlineSession.socket.emit('room:create',{name,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
+    onlineSession.socket.emit('room:create',{name,appearance,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
   }
 
   function onlineJoinRoom(){
@@ -9379,13 +9436,15 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       return;
     }
     const name=($('onlinePlayerName').value||'Player').trim();
+    const firstRow=$('startNames')?.querySelector('.startPlayerRow');
+    const appearance=startRowLook(firstRow,0);
     const code=$('onlineRoomCodeInput').value.trim().toUpperCase();
     if(code.length!==6){
       onlineSetStatus('Enter the complete six-character room code.',true);
       return;
     }
     onlineSetStatus('Joining room…');
-    onlineSession.socket.emit('room:join',{name,code,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
+    onlineSession.socket.emit('room:join',{name,appearance,code,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
   }
 
   function onlineLeaveRoom(notifyServer=true,message='Offline play restored. Create or join a room whenever you want.'){
@@ -10254,7 +10313,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function saveCharacterCustomizer(){
     const rows=[...$('startNames').querySelectorAll('.startPlayerRow')];
-    setStartRowLook(rows[characterEditorIndex],{
+    const appearance={
       skinColor:$('characterSkin').value,
       hairColor:$('characterHairColor').value,
       shirtColor:$('characterShirt').value,
@@ -10267,7 +10326,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       bodyStyle:$('characterBuild').value,
       mountStyle:$('characterMountStyle').value,
       mountColor:$('characterMountColor').value
-    },characterEditorIndex);
+    };
+    setStartRowLook(rows[characterEditorIndex],appearance,characterEditorIndex);
+    if(onlineInRoom() && characterEditorIndex===onlineSession.playerIndex){
+      onlineSession.socket?.emit('room:appearance',{appearance});
+    }
     $('characterCustomizer').classList.add('hidden');
   }
 
@@ -13038,6 +13101,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   let sensorValidPackets=0;
   let sensorEmptyPackets=0;
   let sensorNetworkErrors=0;
+  let sensorLastBatchSize=0;
+  let sensorMaxBatchSize=0;
   let lastValidSensorPacketMs=0;
   let lastSensorSourceTime=null;
   let sensorRecoveryBusy=false;
@@ -21159,15 +21224,33 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     if(onlineRemoteLive.active && !onlineCanControlTurn() && onlineRemoteLive.kind!=='ball'){
-      const alpha=1-Math.exp(-dt*28);
-      visualSwingDeg=THREE.MathUtils.lerp(
+      const packetAge=clamp(
+        (performance.now()-onlineRemoteLive.lastPacketMs)/1000,
+        0,
+        .075
+      );
+      let remoteSwingTarget=onlineRemoteLive.swingDeg+
+        onlineRemoteLive.swingRateDegS*packetAge;
+      if(onlineRemoteLive.swingPhase==='BACKSWING'){
+        remoteSwingTarget=Math.min(remoteSwingTarget,onlineRemoteLive.swingDeg);
+      }else if(['DOWNSWING','IMPACT','FOLLOW'].includes(onlineRemoteLive.swingPhase)){
+        remoteSwingTarget=Math.max(remoteSwingTarget,onlineRemoteLive.swingDeg);
+      }
+      remoteSwingTarget=clamp(remoteSwingTarget,-178,178);
+      const remoteFaceTarget=clamp(
+        onlineRemoteLive.faceDeg+onlineRemoteLive.faceRateDegS*packetAge,
+        -40,
+        40
+      );
+      const alpha=1-Math.exp(-dt*36);
+      visualSwingDeg=dataAngleLerp(
         visualSwingDeg,
-        onlineRemoteLive.swingDeg,
+        remoteSwingTarget,
         alpha
       );
-      visualFaceDeg=THREE.MathUtils.lerp(
+      visualFaceDeg=dataAngleLerp(
         visualFaceDeg,
-        onlineRemoteLive.faceDeg,
+        remoteFaceTarget,
         alpha
       );
       swingPhase=onlineRemoteLive.swingPhase;
@@ -22923,9 +23006,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       const canopyColor=themeName==='Autumn'
         ? [0xc06a35,0xd88b3d,0xa94f31][index%3]
-        : new THREE.Color(currentHole.theme?.fairway||0x4b8d49)
-            .multiplyScalar(.72)
-            .getHex();
+        : themeName==='Cherry Blossom'
+          ? [0xffa7c4,0xf47ead,0xffcad9][index%3]
+          : themeName==='Aurora Night'
+            ? [0x38d7b0,0x45a9ca,0x7f68d8][index%3]
+            : new THREE.Color(currentHole.theme?.fairway||0x4b8d49)
+                .multiplyScalar(.72)
+                .getHex();
 
       addRoundTree(
         parent,
@@ -22978,6 +23065,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       if(
         selector<(
           biome==='Desert'?.16:
+          biome==='Volcanic'?.08:
           biome==='Links'?.30:.47
         ) &&
         shrubPlacements.length<190
@@ -22993,6 +23081,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         !currentHole.isDrivingRange &&
         selector<(
           biome==='Desert'?.70:
+          biome==='Volcanic'?.88:
           biome==='Alpine'?.60:.50
         ) &&
         rockPlacements.length<150
@@ -23044,7 +23133,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
           i,
           base.clone()
             .multiplyScalar(rand(.72,1.18))
-            .lerp(new THREE.Color(0x9cab62),biome==='Autumn'?.22:.07)
+            .lerp(
+              new THREE.Color(
+                biome==='Cherry Blossom'?0xff9dbd:
+                biome==='Aurora Night'?0x48d7c0:
+                0x9cab62
+              ),
+              biome==='Autumn'?.22:(biome==='Cherry Blossom'||biome==='Aurora Night'?.38:.07)
+            )
         );
       });
 
@@ -23063,7 +23159,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       );
       const base=biome==='Desert'
         ? new THREE.Color(0xa77c54)
-        : new THREE.Color(0x747a73);
+        : biome==='Volcanic'
+          ? new THREE.Color(0x332f36)
+          : biome==='Aurora Night'
+            ? new THREE.Color(0x4b5774)
+            : new THREE.Color(0x747a73);
 
       rockPlacements.forEach((p,i)=>{
         dummy.position.set(p.x,p.y+p.sy*.40,p.z);
@@ -23094,6 +23194,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       );
       const seedBase=new THREE.Color(
         biome==='Autumn'?0xb68a4d:
+        biome==='Cherry Blossom'?0xeeb0c4:
+        biome==='Aurora Night'?0x5bd1bd:
+        biome==='Volcanic'?0x9c5a3a:
         biome==='Desert'?0xbd9a63:
         0x9ab66b
       );
@@ -25305,7 +25408,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       );
     }
 
-    const treeLineColor=new THREE.Color(theme.rough).multiplyScalar(.72).getHex();
+    const treeLineColor=
+      theme.name==='Cherry Blossom'?0xc56f93:
+      theme.name==='Aurora Night'?0x176f72:
+      new THREE.Color(theme.rough).multiplyScalar(.72).getHex();
     const perSide=Math.max(0,Math.round(sp.treeLine/2));
     if(perSide){
       addDenseTreeline(
@@ -25318,12 +25424,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     for(let i=0;i<sp.looseTrees;i++){
       const side=Math.random()<.5?-1:1;
+      const looseTreeColor=
+        theme.name==='Cherry Blossom'
+          ? [0xff9ebd,0xf27fa8,0xffc1d3][i%3]
+          : theme.name==='Aurora Night'
+            ? [0x36c9aa,0x359abb,0x7260c7][i%3]
+            : new THREE.Color(theme.fairway).multiplyScalar(rand(.68,.90)).getHex();
       addLiteRoundTree(
         wiiSceneryGroup,
         side*rand(105,175),
         rand(-15,Math.min(HOLE_YARDS+10,675)),
         rand(.72,1.18),
-        new THREE.Color(theme.fairway).multiplyScalar(rand(.68,.90)).getHex()
+        looseTreeColor
       );
     }
 
@@ -31683,16 +31795,82 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   async function getJSON(path,base=activeControllerBase()){
     let r;
     try{
-      r=await fetch(base+path,{cache:'no-store'});
+      const options={cache:'no-store'};
+      // Chrome 142+ gates HTTPS -> local-device requests behind its Local
+      // Network Access permission. Explicitly declaring the destination makes
+      // Chrome show that permission prompt instead of silently degrading the
+      // phyphox feed into repeated failed requests.
+      if(phoneConnectionNeedsLocalCopy(base)){
+        options.targetAddressSpace='local';
+      }
+      r=await fetch(base+path,options);
     }catch(error){
       if(phoneConnectionNeedsLocalCopy(base)){
         syncPhoneConnectionNotice();
-        throw new Error('Browser blocked the local phyphox phone. Use Download Phone-Compatible Game below.');
+        throw new Error('Local-network permission blocked phyphox. Allow Local network access for this site and retry, or use Download Phone-Compatible Game.');
       }
       throw error;
     }
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();
+  }
+
+  function sensorBufferValues(data,name){
+    const values=data?.buffer?.[name]?.buffer;
+    return Array.isArray(values)?values:[];
+  }
+
+  function buildSensorQuery(){
+    const names=[buffers.x,buffers.y,buffers.z,buffers.w,buffers.t]
+      .filter(Boolean);
+
+    if(!buffers.t || !Number.isFinite(lastSensorSourceTime)){
+      return names.map(encodeURIComponent).join('&');
+    }
+
+    const threshold=String(lastSensorSourceTime);
+    return names.map(name=>{
+      const selector=name===buffers.t
+        ? threshold
+        : `${threshold}|${buffers.t}`;
+      return `${encodeURIComponent(name)}=${encodeURIComponent(selector)}`;
+    }).join('&');
+  }
+
+  function unpackSensorFrames(data,receivedAt){
+    const quaternionNames=[buffers.x,buffers.y,buffers.z,buffers.w];
+    const counts=quaternionNames.map(name=>sensorBufferValues(data,name).length);
+    const available=Math.min(...counts);
+    if(!Number.isFinite(available) || available<1) return [];
+
+    // One HTTP response can contain every phone sample since the prior
+    // timestamp. Process the newest bounded batch instead of throwing all but
+    // one away. This preserves high-rate motion even when Wi-Fi/HTTP only
+    // completes 8-12 requests per second.
+    const start=Math.max(0,available-32);
+    const timeValues=buffers.t?sensorBufferValues(data,buffers.t):[];
+    const latestSource=Number(timeValues[available-1]);
+    const frames=[];
+
+    for(let index=start;index<available;index++){
+      const frame={buffer:{}};
+      [
+        ...quaternionNames,
+        buffers.t,
+        buffers.ax,buffers.ay,buffers.az,buffers.a,buffers.at
+      ].filter(Boolean).forEach(name=>{
+        const values=sensorBufferValues(data,name);
+        const value=values[Math.min(index,values.length-1)];
+        frame.buffer[name]={buffer:value===undefined?[]:[value]};
+      });
+
+      const source=Number(timeValues[index]);
+      const ageMs=Number.isFinite(source)&&Number.isFinite(latestSource)
+        ? Math.max(0,(latestSource-source)*1000)
+        : (available-1-index)*10;
+      frames.push({data:frame,now:receivedAt-ageMs});
+    }
+    return frames;
   }
 
   function findAttitude(config){
@@ -32541,16 +32719,23 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       performance.now();
 
     try{
-      const queryNames=[
-        buffers.x,buffers.y,buffers.z,buffers.w,buffers.t
-      ].filter(Boolean);
-
-      const qs=queryNames.map(encodeURIComponent).join('&');
-      const d=await getJSON('/get?'+qs,pollBase);
+      const qs=buildSensorQuery();
+      const received=await getJSON('/get?'+qs,pollBase);
 
       // A late response from the previous player's phone must never feed the
       // next player's swing state after a multiplayer turn change.
       if(pollGeneration!==controllerGeneration) return;
+
+      const sensorFrames=unpackSensorFrames(received,performance.now());
+      sensorLastBatchSize=sensorFrames.length;
+      sensorMaxBatchSize=Math.max(sensorMaxBatchSize,sensorFrames.length);
+      if(!sensorFrames.length){
+        sensorEmptyPackets++;
+        return;
+      }
+
+      for(const sensorFrame of sensorFrames){
+      const d=sensorFrame.data;
 
       const qx=last(d,buffers.x);
       const qy=last(d,buffers.y);
@@ -32577,7 +32762,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       if(norm<.5 || !sourceFresh){
         sensorEmptyPackets++;
-        return;
+        continue;
       }
 
       sensorValidPackets++;
@@ -32595,7 +32780,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         $('status').className='status good';
       }
 
-      const now=performance.now();
+      const now=Math.max(lastSensorTime+.5,sensorFrame.now);
       // Use the real packet interval. Capping this at 80 ms made a harmless
       // 400–700 ms Wi-Fi gap look like an extremely fast rotation, which
       // blocked calibration and destabilized swing detection.
@@ -32920,6 +33105,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       updateSwingHud();
       labCaptureSensorPacket(now);
+      }
 
     }catch(e){
       // Ignore a request that failed after this controller was deliberately

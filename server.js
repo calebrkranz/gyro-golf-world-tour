@@ -69,6 +69,7 @@ function publicRoom(room) {
       name: player.name,
       connected: player.connected,
       controllerReady: Boolean(player.controllerKey),
+      appearance: player.appearance,
       scores: player.scores,
     })),
     turnStates: Array.from(room.turnStates.entries()).map(([playerIndex, state]) => ({ playerIndex, state })),
@@ -114,6 +115,36 @@ function cleanControllerKey(value) {
 
 function cleanDeviceId(value) {
   return String(value || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80);
+}
+
+function cleanColor(value, fallback) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : fallback;
+}
+
+function sanitizeAppearance(value, index = 0) {
+  const look = value && typeof value === "object" ? value : {};
+  const defaults = [
+    { shirtColor: "#58a6ff", ballColor: "#ffffff", skinColor: "#e7b17f", pantsColor: "#26343d", hairColor: "#754521", capColor: "#2d7048", mountColor: "#8b5a36" },
+    { shirtColor: "#ff746b", ballColor: "#ffd84a", skinColor: "#9b633f", pantsColor: "#263c2c", hairColor: "#27201b", capColor: "#315d87", mountColor: "#925d3c" },
+    { shirtColor: "#ffd34e", ballColor: "#ff7474", skinColor: "#f1c7a2", pantsColor: "#34304b", hairColor: "#b77732", capColor: "#8b3f36", mountColor: "#568b63" },
+    { shirtColor: "#8fd56d", ballColor: "#78bfff", skinColor: "#6f432d", pantsColor: "#47352e", hairColor: "#17191b", capColor: "#6f548d", mountColor: "#6b688f" },
+  ][Math.max(0, Math.min(3, Math.trunc(index)))] || {};
+  const pick = (allowed, candidate, fallback) => allowed.includes(candidate) ? candidate : fallback;
+  return {
+    shirtColor: cleanColor(look.shirtColor, defaults.shirtColor),
+    ballColor: cleanColor(look.ballColor, defaults.ballColor),
+    skinColor: cleanColor(look.skinColor, defaults.skinColor),
+    pantsColor: cleanColor(look.pantsColor, defaults.pantsColor),
+    hairColor: cleanColor(look.hairColor, defaults.hairColor),
+    capColor: cleanColor(look.capColor, defaults.capColor),
+    shoeColor: cleanColor(look.shoeColor, "#171c20"),
+    hairStyle: pick(["short", "long", "curly", "buzz"], String(look.hairStyle || ""), "short"),
+    hatStyle: pick(["cap", "visor", "bucket", "none"], String(look.hatStyle || ""), "cap"),
+    bodyStyle: pick(["athletic", "slim", "stocky"], String(look.bodyStyle || ""), "athletic"),
+    mountStyle: pick(["none", "horse", "dragon", "turtle"], String(look.mountStyle || ""), "none"),
+    mountColor: cleanColor(look.mountColor, defaults.mountColor),
+  };
 }
 
 function attachPlayer(socket, room, player) {
@@ -198,6 +229,7 @@ io.on("connection", (socket) => {
         socketId: socket.id,
         connected: true,
         controllerKey: "",
+        appearance: sanitizeAppearance(payload?.appearance, 0),
         scores: {},
       };
       const room = {
@@ -248,6 +280,7 @@ io.on("connection", (socket) => {
       socketId: socket.id,
       connected: true,
       controllerKey: "",
+      appearance: sanitizeAppearance(payload?.appearance, index),
       scores: {},
     };
     room.players.push(player);
@@ -281,6 +314,15 @@ io.on("connection", (socket) => {
     const player = room?.players[socket.data.playerIndex];
     if (!room || !player) return;
     player.name = cleanName(payload?.name, player.name);
+    touch(room);
+    broadcastRoom(room);
+  });
+
+  socket.on("room:appearance", (payload) => {
+    const room = rooms.get(socket.data.roomCode);
+    const player = room?.players[socket.data.playerIndex];
+    if (!room || !player || player.socketId !== socket.id) return;
+    player.appearance = sanitizeAppearance(payload?.appearance, player.index);
     touch(room);
     broadcastRoom(room);
   });
@@ -368,9 +410,8 @@ io.on("connection", (socket) => {
   });
 
   // Live packets are visual-only. The authoritative score/turn still comes
-  // from turn:submit. At 13 Hz these packets are small enough to send
-  // reliably; volatile delivery caused hosted spectators to miss nearly all
-  // of a short swing when a proxy briefly applied backpressure.
+  // from turn:submit. A compact ~25 Hz relay keeps hosted spectators smooth;
+  // same-Wi-Fi peers normally receive the faster direct WebRTC stream.
   socket.on("shot:live", (payload) => {
     const room = rooms.get(socket.data.roomCode);
     const playerIndex = socket.data.playerIndex;
@@ -379,7 +420,7 @@ io.on("connection", (socket) => {
     if (Number(payload?.holeIndex) !== room.holeIndex) return;
 
     const now = Date.now();
-    if (now - socket.data.lastLiveShotAt < 55) return;
+    if (now - socket.data.lastLiveShotAt < 38) return;
     socket.data.lastLiveShotAt = now;
 
     const event = sanitizeLiveShot(payload, room, playerIndex);

@@ -2,6 +2,15 @@
 
 Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
 
+## Online Fix 9
+
+- Phyphox polling now requests and processes every new timestamped phone sample instead of discarding all but the last sample in each Wi-Fi response. Swing motion stays high-rate even when HTTP requests finish slowly.
+- Chrome's Local Network Access permission is requested explicitly from the hosted HTTPS game; the downloadable local copy remains available as a fallback.
+- Same-Wi-Fi live view sends direct snapshots at roughly 40 Hz, with a roughly 20-25 Hz Render relay and short visual prediction to remove spectator stutter.
+- Character appearance and horse, dragon, or turtle mounts now synchronize for every online player.
+- Joining a room hides local-only game modes and leaves only Stroke Play, Island Hopper, and Party Wheel visible.
+- Cherry Blossom, Volcanic, and Aurora Night expand the designer to eight strongly differentiated world themes without adding collision meshes or swing-loop work.
+
 ## Party Pack 2
 
 - Ride a **horse**, **dragon**, or **giant turtle** without changing swing detection, club collision, or ball physics.
@@ -56,19 +65,22 @@ Open `http://localhost:3000` in two browser windows to test a room.
 Browsers may block an HTTPS page from directly reading a phone's `http://192.168...` phyphox address. If that happens:
 
 1. Open **Settings → Phone & Calibration** on the hosted game.
-2. Click **Download Phone-Compatible Game** and open the downloaded HTML on each player's computer.
-3. Create or join the room normally, then enter and connect that computer's own phyphox IP. The downloaded copy remembers the Render server URL automatically.
+2. Click **Connect Phone** and choose **Allow** when Chrome asks to access devices on the local network.
+3. If the request remains blocked, click **Download Phone-Compatible Game** and open the downloaded HTML on each player's computer.
+4. Create or join the room normally, then enter and connect that computer's own phyphox IP. The downloaded copy remembers the Render server URL automatically.
 
 The game runs locally for smooth swing input while only turn results travel through Render. Mouse controls work directly on the hosted page without this extra step.
 
 ## Online play notes
 
 - Online rooms support **Stroke Play**, **Island Hopper**, and **Party Wheel**.
+- Only those three cards remain visible after a room is created or joined.
 - Moon Golf, Mega Cup, Bounce Blitz, Wild Conditions, Target Golf, and Coin Collect remain available for local pass-and-play.
 - Each computer owns exactly one online player and connects only that player's phyphox phone. A persistent browser ID and room token prevent one computer from claiming another player's controller.
 - In local pass-and-play, every player also has an isolated phone slot. Leaving a slot blank makes that player mouse-only; Player 1's phone is never shared automatically.
 - The host starts the round and advances after everyone finishes each hole.
 - Every spectator sees the active player's live club motion and ball flight. Only the active player's browser can detect impact or submit the shot.
+- Online players retain their complete customized golfer and mount appearance on every computer.
 - Every resting player ball remains visible on the course between turns.
 - Courses are deterministic: every player receives the same seed and generated layout.
 - Rooms are kept in memory. A free Render service can sleep or restart, which clears active rooms; create a new room if that happens.
