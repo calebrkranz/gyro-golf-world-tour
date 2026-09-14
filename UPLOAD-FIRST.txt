@@ -24,5 +24,6 @@ routes Start Game through the online room and the server locks each player to a
 unique browser and phone. Blank local phone rows use mouse controls; they never
 share Player 1's phone.
 
-ONLINE FIX 7 also initializes the room connection at startup and wires the
-Create Room, Join Room, Leave Room, room-code Enter key, and server URL controls.
+PARTY PACK 1 adds cosmetic horse, dragon, and giant-turtle mounts plus Moon
+Golf, Mega Cup Mayhem, and Bounce Blitz. The party modes are local-only; the
+working Online Fix 7 room and phyphox controller path remain unchanged.

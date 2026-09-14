@@ -1539,10 +1539,16 @@ label.message{display:block;margin-top:9px}
 .gameModeCard[data-game-mode="target"]{--mode:#218579}.gameModeCard[data-game-mode="chaos"]{--mode:#9a55ba}
 .gameModeCard[data-game-mode="tour"]{--mode:#c58a20}.gameModeCard[data-game-mode="custom"]{--mode:#596b7b;grid-column:span 1}
 .gameModeCard[data-game-mode="island"]{
-  --mode:#168da2;grid-column:1 / -1;min-height:92px;
+  --mode:#168da2;
   background:linear-gradient(135deg,#f1fffb,#d8f2ec 54%,#d6eef7)
 }
 .gameModeCard[data-game-mode="island"] .modeIcon{background:linear-gradient(145deg,#1aa2b5,#13748a)}
+.gameModeCard[data-game-mode="moon"]{--mode:#5967c9}
+.gameModeCard[data-game-mode="moon"] .modeIcon{background:linear-gradient(145deg,#7d88e7,#414ca8)}
+.gameModeCard[data-game-mode="mega"]{--mode:#d65a87}
+.gameModeCard[data-game-mode="mega"] .modeIcon{background:linear-gradient(145deg,#f47ca5,#b43c69)}
+.gameModeCard[data-game-mode="bounce"]{--mode:#e28a27}
+.gameModeCard[data-game-mode="bounce"] .modeIcon{background:linear-gradient(145deg,#ffb44f,#c86815)}
 .modeIcon{
   grid-row:1 / span 2;width:50px;height:50px;margin:0;border-radius:14px;display:grid;place-items:center;
   background:var(--mode);color:#fff;font-size:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.26),0 5px 12px rgba(0,0,0,.13)
@@ -1838,7 +1844,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 6</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Party Pack 1</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1866,7 +1872,7 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 6</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · PARTY PACK 1</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>40 hole architectures</span>
@@ -1935,6 +1941,21 @@ label.message{display:block;margin-top:9px}
           <div class="modeIcon">🏝️</div>
           <div class="modeTitle">Island Hopper</div>
           <div class="modeMini">6 generated island holes · changing island counts, sizes, elevations and routes</div>
+        </button>
+        <button type="button" class="gameModeCard" data-game-mode="moon">
+          <div class="modeIcon">🌙</div>
+          <div class="modeTitle">Moon Golf</div>
+          <div class="modeMini">6 low-gravity holes · towering shots and long hang time · local party mode</div>
+        </button>
+        <button type="button" class="gameModeCard" data-game-mode="mega">
+          <div class="modeIcon">🕳️</div>
+          <div class="modeTitle">Mega Cup Mayhem</div>
+          <div class="modeMini">6 quick holes · giant cups reward bold attacks · local party mode</div>
+        </button>
+        <button type="button" class="gameModeCard" data-game-mode="bounce">
+          <div class="modeIcon">🟠</div>
+          <div class="modeTitle">Bounce Blitz</div>
+          <div class="modeMini">6 springy-ball holes · plan the ricochet and rollout · local party mode</div>
         </button>
       </div>
       <div id="modeDescription" class="modeDescription">
@@ -2081,9 +2102,11 @@ label.message{display:block;margin-top:9px}
                 <label class="characterField"><span>Hair style</span><select id="characterHair"><option value="short">Classic crop</option><option value="long">Long</option><option value="curly">Curly</option><option value="buzz">Buzz cut</option></select></label>
                 <label class="characterField"><span>Hat style</span><select id="characterHatStyle"><option value="cap">Tour cap</option><option value="visor">Sport visor</option><option value="bucket">Bucket hat</option><option value="none">No hat</option></select></label>
                 <label class="characterField"><span>Build</span><select id="characterBuild"><option value="athletic">Athletic</option><option value="slim">Slim</option><option value="stocky">Stocky</option></select></label>
+                <label class="characterField"><span>Mount</span><select id="characterMountStyle"><option value="none">On foot</option><option value="horse">Horse</option><option value="dragon">Dragon</option><option value="turtle">Giant turtle</option></select></label>
+                <label class="characterField"><span>Mount color</span><input id="characterMountColor" type="color" value="#8b5a36"></label>
               </div>
               <button id="characterDoneBtn" class="characterDoneBtn" type="button">Save Character</button>
-              <div class="characterNote">Cosmetic only. Character detail never participates in club collision, swing tracking, or ball physics.</div>
+              <div class="characterNote">Mounts and character detail are cosmetic only. They never participate in club collision, swing tracking, or ball physics.</div>
             </div>
           </div>
         </div>
@@ -2566,7 +2589,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-online6';
+  const DEBUG_VERSION='v107-party1-online7';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -5960,6 +5983,21 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       id:'island',icon:'🏝️',name:'Island Hopper',short:'Islands',holes:6,
       description:'Six approachable island courses. Every hole changes the number, size, elevation and route of its landing islands. Lowest total strokes wins.',
       oneShot:false,requiresTwo:false
+    },
+    moon:{
+      id:'moon',icon:'🌙',name:'Moon Golf',short:'Moon',holes:6,
+      description:'Low gravity turns every shot into a towering moon ball. Club speed still comes from your real swing, but hang time and bounce are dramatically increased. Local party mode.',
+      oneShot:false,requiresTwo:false
+    },
+    mega:{
+      id:'mega',icon:'🕳️',name:'Mega Cup Mayhem',short:'Mega Cup',holes:6,
+      description:'The cup is enormous, approach shots are fearless, and six quick holes decide the winner. Local party mode.',
+      oneShot:false,requiresTwo:false
+    },
+    bounce:{
+      id:'bounce',icon:'🟠',name:'Bounce Blitz',short:'Bounce',holes:6,
+      description:'The ball rebounds hard from fairway and rough. Read slopes, use banks, and tame the rollout to score. Local party mode.',
+      oneShot:false,requiresTwo:false
     }
   };
 
@@ -7475,6 +7513,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   let currentGameMode=GAME_MODES.stroke;
   let modeDistanceMultiplier=1;
   let modeCupMultiplier=1;
+  let modeGravityMultiplier=1;
 
   let modeFairwayFrictionMultiplier=1;
   let modeGreenFrictionMultiplier=1;
@@ -8353,6 +8392,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   function applyGameModeHoleRules(){
     modeDistanceMultiplier=1;
     modeCupMultiplier=1;
+    modeGravityMultiplier=1;
 
     modeFairwayFrictionMultiplier=1;
     modeGreenFrictionMultiplier=1;
@@ -8367,6 +8407,27 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(currentGameModeId==='custom'){
       modeDistanceMultiplier=
         customGameConfig.power/100;
+    }
+
+    if(currentGameModeId==='moon'){
+      modeDistanceMultiplier=1.08;
+      modeGravityMultiplier=.48;
+      modeBounceMultiplier=1.24;
+      modeCupMultiplier=1.18;
+    }
+
+    if(currentGameModeId==='mega'){
+      modeDistanceMultiplier=1.04;
+      modeCupMultiplier=2.35;
+      modeGreenHoldMultiplier=1.12;
+    }
+
+    if(currentGameModeId==='bounce'){
+      modeBounceMultiplier=1.72;
+      modeFairwayFrictionMultiplier=.76;
+      modeRoughFrictionMultiplier=.84;
+      modeGreenHoldMultiplier=.62;
+      modeCupMultiplier=1.28;
     }
 
     if(currentGameModeId==='chaos'){
@@ -8524,7 +8585,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       shoeColor:'#171c20',
       hairStyle:'short',
       hatStyle:'cap',
-      bodyStyle:'athletic'
+      bodyStyle:'athletic',
+      mountStyle:'none',
+      mountColor:['#8b5a36','#925d3c','#568b63','#6b688f'][index%4]
     };
   }
 
@@ -8546,6 +8609,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const bodyStyle=['athletic','slim','stocky'].includes(look?.bodyStyle)
       ? look.bodyStyle
       : 'athletic';
+    const mountStyle=['none','horse','dragon','turtle'].includes(look?.mountStyle)
+      ? look.mountStyle
+      : 'none';
+    const mountColor=look?.mountColor||d.mountColor;
 
     return {
       name:name||`Player ${index+1}`,
@@ -8560,6 +8627,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       hairStyle,
       hatStyle,
       bodyStyle,
+      mountStyle,
+      mountColor,
       scores:new Array(HOLES.length).fill(null),
       holeStates:new Array(HOLES.length).fill(null),
       modeHoleScores:new Array(HOLES.length).fill(null),
@@ -9538,6 +9607,24 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     golferVisorGroup.visible=p.hatStyle==='visor';
     golferBucketHatGroup.visible=p.hatStyle==='bucket';
 
+    const mounted=p.mountStyle!=='none';
+    golferMountBodyMat.color.set(p.mountColor||'#8b5a36');
+    golferMountAccentMat.color
+      .copy(golferMountBodyMat.color)
+      .offsetHSL(-.015,.05,-.20);
+    golferHorseMount.visible=p.mountStyle==='horse';
+    golferDragonMount.visible=p.mountStyle==='dragon';
+    golferTurtleMount.visible=p.mountStyle==='turtle';
+    golferLeg1.visible=!mounted;
+    golferLeg2.visible=!mounted;
+    golferKneeL.visible=!mounted;
+    golferKneeR.visible=!mounted;
+    golferShoeL.visible=!mounted;
+    golferShoeR.visible=!mounted;
+    golferSoleL.visible=!mounted;
+    golferSoleR.visible=!mounted;
+    golferGroundShadow.scale.set(mounted?1.30:.72,mounted?1.38:1.18,1);
+
     const buildScale={
       slim:{x:.84,z:.80,pelvis:.90},
       athletic:{x:1,z:1,pelvis:1},
@@ -9670,7 +9757,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       shoeColor:row.querySelector('.startShoeColor')?.value||defaultPlayerLook(i).shoeColor,
       hairStyle:row.querySelector('.startHairSelect')?.value||'short',
       hatStyle:row.querySelector('.startHatStyle')?.value||'cap',
-      bodyStyle:row.querySelector('.startBodyStyle')?.value||'athletic'
+      bodyStyle:row.querySelector('.startBodyStyle')?.value||'athletic',
+      mountStyle:row.querySelector('.startMountStyle')?.value||'none',
+      mountColor:row.querySelector('.startMountColor')?.value||defaultPlayerLook(i).mountColor
     }));
 
     root.innerHTML='';
@@ -9704,7 +9793,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         startShoeColor:prior.shoeColor,
         startHairSelect:prior.hairStyle,
         startHatStyle:prior.hatStyle,
-        startBodyStyle:prior.bodyStyle
+        startBodyStyle:prior.bodyStyle,
+        startMountStyle:prior.mountStyle||'none',
+        startMountColor:prior.mountColor||defaultPlayerLook(i).mountColor
       };
 
       Object.entries(hiddenValues).forEach(([className,value])=>{
@@ -9747,7 +9838,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       shoeColor:row?.querySelector('.startShoeColor')?.value||d.shoeColor,
       hairStyle:row?.querySelector('.startHairSelect')?.value||d.hairStyle,
       hatStyle:row?.querySelector('.startHatStyle')?.value||d.hatStyle,
-      bodyStyle:row?.querySelector('.startBodyStyle')?.value||d.bodyStyle
+      bodyStyle:row?.querySelector('.startBodyStyle')?.value||d.bodyStyle,
+      mountStyle:row?.querySelector('.startMountStyle')?.value||d.mountStyle,
+      mountColor:row?.querySelector('.startMountColor')?.value||d.mountColor
     };
   }
 
@@ -9764,7 +9857,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       startShoeColor:look.shoeColor||d.shoeColor,
       startHairSelect:look.hairStyle||d.hairStyle,
       startHatStyle:look.hatStyle||d.hatStyle,
-      startBodyStyle:look.bodyStyle||d.bodyStyle
+      startBodyStyle:look.bodyStyle||d.bodyStyle,
+      startMountStyle:look.mountStyle||d.mountStyle,
+      startMountColor:look.mountColor||d.mountColor
     };
     Object.entries(values).forEach(([className,value])=>{
       const field=row.querySelector('.'+className);
@@ -9787,6 +9882,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const style=$('characterHair').value;
     const hatStyle=$('characterHatStyle').value;
     const build=$('characterBuild').value;
+    const mountStyle=$('characterMountStyle').value;
+    const mountColor=$('characterMountColor').value;
+    const mounted=mountStyle!=='none';
     const widths={slim:74,athletic:88,stocky:104};
     const torsoW=widths[build]||88;
     ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -9794,15 +9892,46 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     ctx.save();
     ctx.translate(180,18);
     ctx.fillStyle='rgba(8,34,17,.20)';
-    ctx.beginPath();ctx.ellipse(0,390,84,18,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(0,390,mounted?132:84,mounted?23:18,0,0,Math.PI*2);ctx.fill();
 
-    ctx.fillStyle=shoes;
-    ctx.beginPath();ctx.ellipse(-30,369,30,12,-.08,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(30,369,30,12,.08,0,Math.PI*2);ctx.fill();
+    if(mounted){
+      ctx.lineCap='round';
+      if(mountStyle==='turtle'){
+        ctx.fillStyle=mountColor;ctx.beginPath();ctx.ellipse(0,324,102,55,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.16)';ctx.beginPath();ctx.ellipse(-12,308,75,34,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=mountColor;ctx.beginPath();ctx.arc(99,321,27,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle=mountColor;ctx.lineWidth=20;
+        for(const x of [-67,-35,38,70]){ctx.beginPath();ctx.moveTo(x,350);ctx.lineTo(x+(x<0?-9:9),376);ctx.stroke();}
+      }else{
+        ctx.strokeStyle=mountColor;ctx.lineWidth=19;
+        for(const x of [-62,-30,32,65]){ctx.beginPath();ctx.moveTo(x,343);ctx.lineTo(x+(x<0?-5:5),380);ctx.stroke();}
+        ctx.fillStyle='#2a211d';
+        for(const x of [-67,-35,37,70]){ctx.beginPath();ctx.ellipse(x,381,13,6,0,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle=mountColor;ctx.beginPath();ctx.ellipse(0,321,91,45,0,0,Math.PI*2);ctx.fill();
+        if(mountStyle==='horse'){
+          ctx.strokeStyle=mountColor;ctx.lineWidth=30;ctx.beginPath();ctx.moveTo(63,306);ctx.lineTo(91,274);ctx.stroke();
+          ctx.fillStyle=mountColor;ctx.beginPath();ctx.ellipse(104,263,31,24,-.18,0,Math.PI*2);ctx.fill();
+          ctx.beginPath();ctx.moveTo(88,243);ctx.lineTo(93,220);ctx.lineTo(104,246);ctx.fill();
+          ctx.beginPath();ctx.moveTo(110,242);ctx.lineTo(122,220);ctx.lineTo(124,249);ctx.fill();
+          ctx.strokeStyle='rgba(35,24,20,.65)';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(-82,310);ctx.quadraticCurveTo(-122,331,-111,360);ctx.stroke();
+        }else{
+          ctx.fillStyle='rgba(255,255,255,.20)';
+          ctx.beginPath();ctx.moveTo(-24,310);ctx.lineTo(-105,260);ctx.lineTo(-70,337);ctx.fill();
+          ctx.beginPath();ctx.moveTo(24,310);ctx.lineTo(105,260);ctx.lineTo(70,337);ctx.fill();
+          ctx.fillStyle=mountColor;ctx.beginPath();ctx.ellipse(100,300,34,27,0,0,Math.PI*2);ctx.fill();
+          ctx.beginPath();ctx.moveTo(-84,318);ctx.lineTo(-142,345);ctx.lineTo(-90,339);ctx.fill();
+          ctx.fillStyle='rgba(245,225,126,.9)';ctx.beginPath();ctx.moveTo(98,277);ctx.lineTo(108,247);ctx.lineTo(114,282);ctx.fill();
+        }
+      }
+    }else{
+      ctx.fillStyle=shoes;
+      ctx.beginPath();ctx.ellipse(-30,369,30,12,-.08,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(30,369,30,12,.08,0,Math.PI*2);ctx.fill();
 
-    ctx.lineCap='round';ctx.strokeStyle=pants;ctx.lineWidth=25;
-    ctx.beginPath();ctx.moveTo(-22,267);ctx.lineTo(-29,357);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(22,267);ctx.lineTo(29,357);ctx.stroke();
+      ctx.lineCap='round';ctx.strokeStyle=pants;ctx.lineWidth=25;
+      ctx.beginPath();ctx.moveTo(-22,267);ctx.lineTo(-29,357);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(22,267);ctx.lineTo(29,357);ctx.stroke();
+    }
     ctx.fillStyle=pants;ctx.beginPath();ctx.ellipse(0,264,torsoW*.43,31,0,0,Math.PI*2);ctx.fill();
 
     const grad=ctx.createLinearGradient(-torsoW/2,0,torsoW/2,0);
@@ -9870,6 +9999,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     $('characterHair').value=look.hairStyle;
     $('characterHatStyle').value=look.hatStyle;
     $('characterBuild').value=look.bodyStyle;
+    $('characterMountStyle').value=look.mountStyle;
+    $('characterMountColor').value=look.mountColor;
     $('characterCustomizer').classList.remove('hidden');
     drawCharacterPreview();
   }
@@ -9886,12 +10017,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       ballColor:$('characterBall').value,
       hairStyle:$('characterHair').value,
       hatStyle:$('characterHatStyle').value,
-      bodyStyle:$('characterBuild').value
+      bodyStyle:$('characterBuild').value,
+      mountStyle:$('characterMountStyle').value,
+      mountColor:$('characterMountColor').value
     },characterEditorIndex);
     $('characterCustomizer').classList.add('hidden');
   }
 
-  ['characterSkin','characterHairColor','characterShirt','characterPants','characterCap','characterShoes','characterBall','characterHair','characterHatStyle','characterBuild']
+  ['characterSkin','characterHairColor','characterShirt','characterPants','characterCap','characterShoes','characterBall','characterHair','characterHatStyle','characterBuild','characterMountStyle','characterMountColor']
     .forEach(id=>$(id)?.addEventListener('input',drawCharacterPreview));
   $('characterDoneBtn')?.addEventListener('click',saveCharacterCustomizer);
   $('characterCloseBtn')?.addEventListener('click',saveCharacterCustomizer);
@@ -11901,7 +12034,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       shoeColor:row.querySelector('.startShoeColor')?.value||defaultPlayerLook(i).shoeColor,
       hairStyle:row.querySelector('.startHairSelect')?.value||'short',
       hatStyle:row.querySelector('.startHatStyle')?.value||'cap',
-      bodyStyle:row.querySelector('.startBodyStyle')?.value||'athletic'
+      bodyStyle:row.querySelector('.startBodyStyle')?.value||'athletic',
+      mountStyle:row.querySelector('.startMountStyle')?.value||'none',
+      mountColor:row.querySelector('.startMountColor')?.value||defaultPlayerLook(i).mountColor
     }));
 
     playerCount=startPlayerCount;
@@ -11942,9 +12077,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       courseDesignerConfig.routing=onlineRound.routing||courseDesignerConfig.routing;
       currentCourseSeed=normalizeCourseSeed(onlineRound.seed);
       syncCourseDesignerUI();
-    }else if(currentGameModeId==='stroke' || currentGameModeId==='island'){
-      // Ordinary Stroke Play and Island Hopper should feel new every time
-      // Start Game is used. Custom Course and Tour retain chosen seeds.
+    }else if(['stroke','island','moon','mega','bounce'].includes(currentGameModeId)){
+      // Procedural and party modes should feel new every time Start Game is
+      // used. Custom Course and Tour retain their deliberately chosen seeds.
       courseDesignerConfig.seed=freshCourseSeed();
       currentCourseSeed=courseDesignerConfig.seed;
       saveCourseDesigner();
@@ -19397,6 +19532,80 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   golferGroundShadow.scale.set(.72,1.18,1);
   golferGroundShadow.renderOrder=1;
 
+  // Party Pack mounts are visual children of the golfer only. They never
+  // receive colliders and do not alter the hands, club, swing, or ball.
+  const golferMountBodyMat=new THREE.MeshStandardMaterial({color:0x8b5a36,roughness:.88});
+  const golferMountAccentMat=new THREE.MeshStandardMaterial({color:0x513522,roughness:.91});
+  const golferMountHornMat=new THREE.MeshStandardMaterial({color:0xf1d77b,roughness:.58,metalness:.08});
+  const golferMountEyeMat=new THREE.MeshStandardMaterial({color:0x11191a,roughness:.45});
+
+  function visualMountMesh(geometry,material,position,rotation=null,scale=null){
+    const mesh=new THREE.Mesh(geometry,material);
+    mesh.position.set(...position);
+    if(rotation) mesh.rotation.set(...rotation);
+    if(scale) mesh.scale.set(...scale);
+    mesh.castShadow=true;
+    mesh.receiveShadow=true;
+    return mesh;
+  }
+
+  const golferHorseMount=new THREE.Group();
+  const horseBody=visualMountMesh(new THREE.CapsuleGeometry(.37,1.08,5,14),golferMountBodyMat,[0,.77,-.03],[0,0,Math.PI/2],[1,1.05,1]);
+  const horseNeck=visualMountMesh(new THREE.CapsuleGeometry(.19,.52,4,12),golferMountBodyMat,[.74,1.03,-.01],[0,0,-.58]);
+  const horseHead=visualMountMesh(new THREE.SphereGeometry(.30,18,13),golferMountBodyMat,[1.04,1.30,.02],null,[1.18,.88,.82]);
+  const horseMuzzle=visualMountMesh(new THREE.SphereGeometry(.19,14,10),golferMountAccentMat,[1.28,1.22,.03],null,[1.12,.68,.76]);
+  const horseTail=visualMountMesh(new THREE.ConeGeometry(.15,.76,12),golferMountAccentMat,[-.92,.76,-.03],[0,0,-1.05]);
+  golferHorseMount.add(horseBody,horseNeck,horseHead,horseMuzzle,horseTail);
+  [[-.54,-.23],[-.54,.23],[.51,-.23],[.51,.23]].forEach(([x,z])=>{
+    const leg=visualMountMesh(new THREE.CylinderGeometry(.085,.105,.70,10),golferMountBodyMat,[x,.35,z]);
+    const hoof=visualMountMesh(new THREE.SphereGeometry(.12,10,7),golferMountAccentMat,[x,.045,z+.035],null,[1.12,.50,1.40]);
+    golferHorseMount.add(leg,hoof);
+  });
+  [[.96,1.56,-.13],[.96,1.56,.15]].forEach(([x,y,z])=>{
+    golferHorseMount.add(visualMountMesh(new THREE.ConeGeometry(.085,.27,9),golferMountBodyMat,[x,y,z],[0,0,-.18]));
+  });
+  [[1.23,1.34,-.19],[1.23,1.34,.21]].forEach(([x,y,z])=>{
+    golferHorseMount.add(visualMountMesh(new THREE.SphereGeometry(.038,8,6),golferMountEyeMat,[x,y,z]));
+  });
+  golferHorseMount.visible=false;
+
+  const golferDragonMount=new THREE.Group();
+  const dragonBody=visualMountMesh(new THREE.CapsuleGeometry(.40,1.20,5,14),golferMountBodyMat,[0,.79,-.02],[0,0,Math.PI/2]);
+  const dragonHead=visualMountMesh(new THREE.SphereGeometry(.31,18,13),golferMountBodyMat,[1.06,1.10,.02],null,[1.24,.82,.90]);
+  const dragonSnout=visualMountMesh(new THREE.ConeGeometry(.20,.50,12),golferMountAccentMat,[1.38,1.05,.02],[0,0,-Math.PI/2],[.78,1,.78]);
+  const dragonTail=visualMountMesh(new THREE.ConeGeometry(.23,1.45,14),golferMountBodyMat,[-1.20,.73,-.02],[0,0,Math.PI/2]);
+  const dragonWingL=visualMountMesh(new THREE.ConeGeometry(.54,1.20,3),golferMountAccentMat,[-.05,1.08,-.57],[Math.PI/2,0,-.28],[1.20,1,.22]);
+  const dragonWingR=dragonWingL.clone();
+  dragonWingR.position.z=.57;
+  dragonWingR.rotation.x=-Math.PI/2;
+  golferDragonMount.add(dragonBody,dragonHead,dragonSnout,dragonTail,dragonWingL,dragonWingR);
+  [[-.55,-.25],[-.55,.25],[.52,-.25],[.52,.25]].forEach(([x,z])=>{
+    const leg=visualMountMesh(new THREE.CylinderGeometry(.09,.12,.60,10),golferMountBodyMat,[x,.34,z]);
+    const foot=visualMountMesh(new THREE.SphereGeometry(.14,10,7),golferMountAccentMat,[x,.07,z+.07],null,[1.35,.45,1.55]);
+    golferDragonMount.add(leg,foot);
+  });
+  [[.79,1.40,-.16],[.79,1.40,.18]].forEach(([x,y,z])=>{
+    golferDragonMount.add(visualMountMesh(new THREE.ConeGeometry(.09,.34,9),golferMountHornMat,[x,y,z],[0,0,-.24]));
+  });
+  [[1.22,1.16,-.20],[1.22,1.16,.22]].forEach(([x,y,z])=>{
+    golferDragonMount.add(visualMountMesh(new THREE.SphereGeometry(.042,8,6),golferMountEyeMat,[x,y,z]));
+  });
+  golferDragonMount.visible=false;
+
+  const golferTurtleMount=new THREE.Group();
+  const turtleBody=visualMountMesh(new THREE.SphereGeometry(.70,24,16),golferMountBodyMat,[0,.61,0],null,[1.36,.62,.90]);
+  const turtleShell=visualMountMesh(new THREE.SphereGeometry(.68,24,16,0,Math.PI*2,0,Math.PI*.58),golferMountAccentMat,[-.05,.77,0],null,[1.28,.75,.92]);
+  const turtleHead=visualMountMesh(new THREE.SphereGeometry(.27,16,12),golferMountBodyMat,[1.02,.63,0],null,[1.18,.92,.92]);
+  const turtleTail=visualMountMesh(new THREE.ConeGeometry(.12,.48,10),golferMountBodyMat,[-1.02,.58,0],[0,0,Math.PI/2]);
+  golferTurtleMount.add(turtleBody,turtleShell,turtleHead,turtleTail);
+  [[-.56,-.48],[-.56,.48],[.55,-.48],[.55,.48]].forEach(([x,z])=>{
+    golferTurtleMount.add(visualMountMesh(new THREE.SphereGeometry(.17,12,8),golferMountBodyMat,[x,.20,z],null,[1.25,.58,1.45]));
+  });
+  [[1.22,.69,-.17],[1.22,.69,.19]].forEach(([x,y,z])=>{
+    golferTurtleMount.add(visualMountMesh(new THREE.SphereGeometry(.042,8,6),golferMountEyeMat,[x,y,z]));
+  });
+  golferTurtleMount.visible=false;
+
   golferGroup.add(
     golferTorso,golferNeck,golferHead,golferHair,golferLongHair,
     golferCapGroup,golferVisorGroup,golferBucketHatGroup,
@@ -19404,6 +19613,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     golferLeg1,golferLeg2,golferKneeL,golferKneeR,
     golferShoeL,golferShoeR,
     golferSoleL,golferSoleR,
+    golferHorseMount,golferDragonMount,golferTurtleMount,
     golferGroundShadow
   );
   golferGroup.scale.setScalar(1.24);
@@ -27342,7 +27552,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       shoeColor:p.shoeColor,
       hairStyle:p.hairStyle,
       hatStyle:p.hatStyle,
-      bodyStyle:p.bodyStyle
+      bodyStyle:p.bodyStyle,
+      mountStyle:p.mountStyle,
+      mountColor:p.mountColor
     }));
 
     playerCount=count;
@@ -27417,7 +27629,12 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         if(
           currentGameModeId==='stroke' ||
           currentGameModeId==='chaos' ||
-          currentGameModeId==='custom'
+          currentGameModeId==='custom' ||
+          currentGameModeId==='island' ||
+          currentGameModeId==='tour' ||
+          currentGameModeId==='moon' ||
+          currentGameModeId==='mega' ||
+          currentGameModeId==='bounce'
         ){
           delta=
             a.primary-
@@ -27526,7 +27743,12 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   ){
     if(currentGameModeId==='stroke' ||
        currentGameModeId==='chaos' ||
-       currentGameModeId==='custom'){
+       currentGameModeId==='custom' ||
+       currentGameModeId==='island' ||
+       currentGameModeId==='tour' ||
+       currentGameModeId==='moon' ||
+       currentGameModeId==='mega' ||
+       currentGameModeId==='bounce'){
       const total=
         completedCourseStrokes(
           player
@@ -30303,7 +30525,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       shoeColor:p.shoeColor,
       hairStyle:p.hairStyle,
       hatStyle:p.hatStyle,
-      bodyStyle:p.bodyStyle
+      bodyStyle:p.bodyStyle,
+      mountStyle:p.mountStyle,
+      mountColor:p.mountColor
     }));
 
     const savedDesigner={...courseDesignerConfig};
@@ -30506,7 +30730,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       dt
     );
 
-    velocity.y-=10.73*dt;
+    velocity.y-=10.73*modeGravityMultiplier*dt;
   }
 
   // ---------------- PHYSICS ----------------
@@ -32964,6 +33188,22 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
   }
 
+  function updateMountIdle(now){
+    const t=now*.001;
+    if(golferHorseMount.visible){
+      horseTail.rotation.z=-1.05+Math.sin(t*2.4)*.15;
+      horseHead.position.y=1.30+Math.sin(t*1.7)*.018;
+    }else if(golferDragonMount.visible){
+      const wingBeat=Math.sin(t*2.1)*.12;
+      dragonWingL.rotation.z=-.28+wingBeat;
+      dragonWingR.rotation.z=-.28-wingBeat;
+      dragonHead.position.y=1.10+Math.sin(t*1.5)*.025;
+    }else if(golferTurtleMount.visible){
+      turtleHead.position.x=1.02+Math.sin(t*.85)*.025;
+      turtleHead.rotation.y=Math.sin(t*.7)*.08;
+    }
+  }
+
   function loop(now){
     // v44 critical resilience change:
     // Schedule the next frame BEFORE running game code. An exception can no
@@ -33050,6 +33290,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         drawMiniMap();
       }
       updateGolferAtAddress();
+      if(!swingPerformanceActive()) updateMountIdle(now);
       updateSurfaceImpactFX(dt);
       updateCupPriorityVisibility();
 
@@ -33360,6 +33601,36 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   // even while the browser appeared to be inside an online room.
   $('startGameBtn').addEventListener('click',onlineStartRequested);
 
+  // Online lobby controls. These handlers must be registered explicitly;
+  // otherwise the room UI renders but Create/Join are inert and the socket
+  // connection is never initialized.
+  $('onlineCreateBtn').addEventListener('click',onlineCreateRoom);
+  $('onlineJoinBtn').addEventListener('click',onlineJoinRoom);
+  $('onlineLeaveBtn').addEventListener('click',()=>onlineLeaveRoom(true));
+  $('onlineRoomCodeInput').addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      event.preventDefault();
+      onlineJoinRoom();
+    }
+  });
+  $('onlineServerUrl').addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  });
+  $('onlineServerUrl').addEventListener('change',()=>{
+    const entered=String($('onlineServerUrl').value||'').trim().replace(/\/+$/,'');
+    try{localStorage.setItem('gyroGolfOnlineServerUrl',entered)}catch(_){}
+    initializeOnlineRooms();
+  });
+  $('onlinePlayerName').addEventListener('change',()=>{
+    if(!onlineInRoom()) return;
+    onlineSession.socket?.emit('room:rename',{
+      name:String($('onlinePlayerName').value||'Player').trim()
+    });
+  });
+
   document.querySelectorAll('[data-player-count]').forEach(btn=>btn.addEventListener('click',()=>setPlayerCount(Number(btn.dataset.playerCount))));
 
   $('settingsBtn').addEventListener('click',()=>setSettingsOpen(true));
@@ -33522,6 +33793,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   updateShotGuideUI();
   syncMouseAimUI();
   syncOpeningMusicButtons();
+  initializeOnlineRooms();
   startOpeningMusic();
   window.setTimeout(()=>{
     const gate=$('titleAudioGate');

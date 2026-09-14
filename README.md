@@ -1,6 +1,13 @@
 # Gyro Golf World Tour
 
-Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, and room-code online multiplayer.
+Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
+
+## Party Pack 1
+
+- Ride a **horse**, **dragon**, or **giant turtle** without changing swing detection, club collision, or ball physics.
+- Give every player's mount its own color in **Customize Character**.
+- Play **Moon Golf**, **Mega Cup Mayhem**, and **Bounce Blitz** as local party modes.
+- Standard Stroke Play and the online room system retain their established physics and controller behavior.
 
 ## Deploy on Render
 
@@ -34,6 +41,7 @@ The game runs locally for smooth swing input while only turn results travel thro
 ## Online play notes
 
 - Online rooms support **Stroke Play** and **Island Hopper**.
+- Party Pack modes are local-only so experimental physics never enter an online room.
 - Each computer owns exactly one online player and connects only that player's phyphox phone. A persistent browser ID and room token prevent one computer from claiming another player's controller.
 - In local pass-and-play, every player also has an isolated phone slot. Leaving a slot blank makes that player mouse-only; Player 1's phone is never shared automatically.
 - The host starts the round and advances after everyone finishes each hole.
