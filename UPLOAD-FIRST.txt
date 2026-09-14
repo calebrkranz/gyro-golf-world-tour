@@ -1,0 +1,17 @@
+GYRO GOLF WORLD TOUR — NEXT STEPS
+
+1. Unzip Gyro-Golf-World-Tour-Render.zip.
+2. Open your gyro-golf-world-tour repository on GitHub.
+3. Click Add file, then Upload files.
+4. Drag in ALL unzipped items: public, server.js, package.json,
+   package-lock.json, render.yaml, README.md, and .gitignore.
+5. Commit the files directly to main.
+6. In Render click New +, choose Blueprint, connect this repository,
+   and click Deploy Blueprint.
+7. Open the Render URL. Create a room and give the six-character code
+   to Player 2.
+
+PHONE CONTROL NOTE
+If the hosted HTTPS page blocks the local HTTP phyphox address, open the
+included public/index.html directly from your computer. Paste the Render URL
+into Online server URL. This keeps swing input local and room turns online.
