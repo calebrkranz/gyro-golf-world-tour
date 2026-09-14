@@ -113,7 +113,42 @@ function sanitizeTurnState(value) {
   };
 }
 
+function finiteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function sanitizeLiveShot(value, room, playerIndex) {
+  const live = value && typeof value === "object" ? value : {};
+  const kind = ["address", "swing", "ball"].includes(live.kind) ? live.kind : "address";
+  const ballState = ["rest", "flight", "roll", "cup"].includes(live.ballState)
+    ? live.ballState
+    : "rest";
+  const clamp = (number, min, max) => Math.max(min, Math.min(max, number));
+  return {
+    playerIndex,
+    holeIndex: room.holeIndex,
+    kind,
+    ballState,
+    swingPhase: String(live.swingPhase || "ADDRESS").slice(0, 16),
+    swingDeg: clamp(finiteNumber(live.swingDeg), -120, 120),
+    faceDeg: clamp(finiteNumber(live.faceDeg), -45, 45),
+    position: {
+      x: clamp(finiteNumber(live.position?.x), -2500, 2500),
+      y: clamp(finiteNumber(live.position?.y), -500, 1000),
+      z: clamp(finiteNumber(live.position?.z), -2500, 2500),
+    },
+    velocity: {
+      x: clamp(finiteNumber(live.velocity?.x), -500, 500),
+      y: clamp(finiteNumber(live.velocity?.y), -500, 500),
+      z: clamp(finiteNumber(live.velocity?.z), -500, 500),
+    },
+    sentAt: Date.now(),
+  };
+}
+
 io.on("connection", (socket) => {
+  socket.data.lastLiveShotAt = 0;
   socket.on("room:create", (payload, callback) => {
     try {
       const code = newCode();
@@ -239,6 +274,24 @@ io.on("connection", (socket) => {
     touch(room);
     acknowledge(callback, { ok: true });
     io.to(room.code).emit("game:started", publicRoom(room));
+  });
+
+  // Live packets are visual-only and deliberately lossy. The authoritative
+  // score/turn still comes from turn:submit, while spectators receive enough
+  // club and ball state to watch the active player in real time.
+  socket.on("shot:live", (payload) => {
+    const room = rooms.get(socket.data.roomCode);
+    const playerIndex = socket.data.playerIndex;
+    if (!room || room.status !== "playing") return;
+    if (playerIndex !== room.activeIndex) return;
+    if (Number(payload?.holeIndex) !== room.holeIndex) return;
+
+    const now = Date.now();
+    if (now - socket.data.lastLiveShotAt < 40) return;
+    socket.data.lastLiveShotAt = now;
+
+    const event = sanitizeLiveShot(payload, room, playerIndex);
+    socket.to(room.code).volatile.emit("shot:live", event);
   });
 
   socket.on("turn:submit", (payload, callback) => {

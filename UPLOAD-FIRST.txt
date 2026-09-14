@@ -12,6 +12,8 @@ GYRO GOLF WORLD TOUR — NEXT STEPS
    to Player 2.
 
 PHONE CONTROL NOTE
-If the hosted HTTPS page blocks the local HTTP phyphox address, open the
-included public/index.html directly from your computer. Paste the Render URL
-into Online server URL. This keeps swing input local and room turns online.
+If the hosted HTTPS page blocks the local HTTP phyphox address, open Settings
+and click Download Phone-Compatible Game. Open that downloaded HTML on each
+computer, enter that player's phyphox IP, and connect. The Render URL is saved
+into the downloaded copy automatically. Everyone can watch the active player's
+live swing and ball flight, but only that player can launch the shot.

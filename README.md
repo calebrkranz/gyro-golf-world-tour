@@ -25,9 +25,9 @@ Open `http://localhost:3000` in two browser windows to test a room.
 
 Browsers may block an HTTPS page from directly reading a phone's `http://192.168...` phyphox address. If that happens:
 
-1. Download `public/index.html` and open it directly on each player's computer.
-2. Paste your Render URL (for example `https://gyro-golf-world-tour.onrender.com`) into **Online server URL**.
-3. Create or join the room normally, then connect that computer's own phyphox phone.
+1. Open **Settings → Phone & Calibration** on the hosted game.
+2. Click **Download Phone-Compatible Game** and open the downloaded HTML on each player's computer.
+3. Create or join the room normally, then enter and connect that computer's own phyphox IP. The downloaded copy remembers the Render server URL automatically.
 
 The game runs locally for smooth swing input while only turn results travel through Render. Mouse controls work directly on the hosted page without this extra step.
 
@@ -36,5 +36,6 @@ The game runs locally for smooth swing input while only turn results travel thro
 - Online rooms support **Stroke Play** and **Island Hopper**.
 - Each computer can connect to its own phyphox phone or use mouse controls.
 - The host starts the round and advances after everyone finishes each hole.
+- Every spectator sees the active player's live club motion and ball flight. Only the active player's browser can detect impact or submit the shot.
 - Courses are deterministic: every player receives the same seed and generated layout.
 - Rooms are kept in memory. A free Render service can sleep or restart, which clears active rooms; create a new room if that happens.
