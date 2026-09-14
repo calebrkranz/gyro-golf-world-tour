@@ -1794,6 +1794,9 @@ label.message{display:block;margin-top:9px}
   .mouseShotControls.show{animation:none}
 }
 .onlineLobby{margin:12px 0 14px;padding:14px;border:1px solid #b8cfbc;border-radius:15px;background:linear-gradient(135deg,#f6fbf4,#e5f2e7);box-shadow:inset 0 1px 0 #fff}
+.playConnectionMode{display:flex;align-items:center;gap:10px;margin:0 0 11px;padding:10px 12px;border-radius:11px;background:#fff4cf;border:1px solid #dfbd58;color:#60470c;font-size:10px;line-height:1.35}
+.playConnectionMode strong{font-size:11px;font-weight:1000;white-space:nowrap}
+.playConnectionMode.online{background:#dff6e3;border-color:#68bd78;color:#155c2a}
 .onlineLobbyHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
 .onlineLobbyTitle{font-size:13px;font-weight:1000;color:#173b27;letter-spacing:.04em;text-transform:uppercase}
 .onlineLobbyBadge{padding:5px 9px;border-radius:999px;background:#d8e5d9;color:#45604b;font-size:9px;font-weight:1000}
@@ -1814,6 +1817,10 @@ label.message{display:block;margin-top:9px}
 .onlineTurnToast{position:fixed;left:50%;top:84px;z-index:95;transform:translateX(-50%);display:none;max-width:min(520px,calc(100vw - 30px));padding:10px 16px;border-radius:999px;background:rgba(8,29,19,.92);color:#fff;font-size:11px;font-weight:1000;box-shadow:0 10px 30px rgba(0,0,0,.25);backdrop-filter:blur(8px)}
 .onlineTurnToast.show{display:block}
 .onlineTurnToast.yours{background:rgba(26,112,55,.95);box-shadow:0 10px 30px rgba(17,90,43,.3)}
+.phoneBridgeNotice{display:none;margin:10px 0 0;padding:11px 12px;border:1px solid #e2bd5d;border-radius:12px;background:linear-gradient(135deg,#fff9df,#f8e7ab);color:#503d13;font-size:10px;line-height:1.4}
+.phoneBridgeNotice.show{display:block}
+.phoneBridgeNotice b{display:block;margin-bottom:3px;font-size:11px}
+.phoneBridgeNotice button{margin-top:8px;width:100%;border:1px solid #c79427;border-radius:9px;padding:9px 10px;background:#f2c44f;color:#332300;font-weight:1000;cursor:pointer}
 @media(max-width:760px){.onlineLobbyGrid{grid-template-columns:1fr 1fr}.onlineLobbyGrid input:first-child{grid-column:1/-1}}
 </style>
 
@@ -1831,7 +1838,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 6</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1859,7 +1866,7 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 6</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>40 hole architectures</span>
@@ -2029,9 +2036,10 @@ label.message{display:block;margin-top:9px}
 
       <div id="onlineLobby" class="onlineLobby">
         <div class="onlineLobbyHead">
-          <div class="onlineLobbyTitle">🌐 Online Room <span style="font-size:9px;color:#68806d">· optional</span></div>
+          <div class="onlineLobbyTitle">🌐 Online Room <span style="font-size:9px;color:#68806d">· required for different computers</span></div>
           <div id="onlineLobbyBadge" class="onlineLobbyBadge">OFFLINE</div>
         </div>
+        <div id="playConnectionMode" class="playConnectionMode"><strong>LOCAL PASS-AND-PLAY</strong><span>Players share this computer only. Create or join a room to watch live play on different computers.</span></div>
         <div class="onlineLobbyGrid">
           <input id="onlinePlayerName" maxlength="18" placeholder="Your online name" value="Player 1" aria-label="Online player name">
           <input id="onlineRoomCodeInput" class="onlineCodeInput" maxlength="6" placeholder="ROOM CODE" aria-label="Online room code">
@@ -2039,7 +2047,7 @@ label.message{display:block;margin-top:9px}
           <button id="onlineJoinBtn" class="secondary" type="button">Join Room</button>
           <input id="onlineServerUrl" style="grid-column:1/-1" placeholder="Online server URL · automatic when playing on Render" aria-label="Online server URL">
         </div>
-        <div id="onlineLobbyStatus" class="onlineLobbyStatus">Create a room, share its six-character code, then start Stroke Play or Island Hopper. Every computer can use its own phone or mouse controls.</div>
+        <div id="onlineLobbyStatus" class="onlineLobbyStatus">Create a room on one computer and join its six-character code on every other computer. Each computer enters only its own phone IP.</div>
         <div id="onlineRoster" class="onlineRoster"></div>
         <button id="onlineLeaveBtn" class="secondary" type="button" style="display:none;margin-top:10px">Leave Online Room</button>
       </div>
@@ -2409,10 +2417,15 @@ label.message{display:block;margin-top:9px}
         <button id="calibrateClub" class="secondary" disabled>Recalibrate Now</button>
         <button id="fullscreenBtn" class="secondary">Enter Fullscreen</button>
       </div>
+      <div id="phoneBridgeNotice" class="phoneBridgeNotice">
+        <b>Phone connection needs the local game copy</b>
+        A secure hosted page can be blocked from reading an HTTP phyphox phone on your Wi-Fi. Download this phone-compatible copy on each player's computer; it remembers this online server automatically.
+        <button id="downloadLocalController" type="button">Download Phone-Compatible Game</button>
+      </div>
       <div class="controllerSetup">
         <div class="controllerSetupHead">
           <b>Multiplayer phones</b>
-          <span>Each player can use a different phyphox IP. Blank players automatically share Player 1's phone.</span>
+          <span>Every phone is locked to one player. A blank player uses mouse controls and never shares another player's phone.</span>
         </div>
         <div id="controllerRows" class="controllerRows"></div>
         <button id="connectAllPhones" class="secondary" style="width:100%">Check All Player Phones</button>
@@ -2553,7 +2566,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107';
+  const DEBUG_VERSION='v107-online6';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -2663,6 +2676,29 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         ),
       controllerVisualPacketIntervalMs:
         +controllerVisualPacketIntervalMs.toFixed(1),
+      online:(()=>{
+        try{
+          return {
+            inRoom:onlineInRoom(),
+            gameActive:onlineGameActive(),
+            socketConnected:!!onlineSession.socket?.connected,
+            playerIndex:onlineSession.playerIndex,
+            activeIndex:onlineSession.activeIndex,
+            roomStatus:onlineSession.status,
+            deviceTag:ONLINE_DEVICE_ID.slice(-8),
+            controllerSlot:activeControllerSlot,
+            directPeers:onlineDirectPeerCount(),
+            remoteLiveActive:onlineRemoteLive.active,
+            remoteTransport:onlineRemoteLive.transport,
+            remotePacketAgeMs:onlineRemoteLive.lastPacketMs
+              ? Math.round(performance.now()-onlineRemoteLive.lastPacketMs)
+              : null,
+            remoteSequence:onlineRemoteLive.lastSequence
+          };
+        }catch(_){
+          return null;
+        }
+      })(),
       generatorValidated:currentHole?.generatorValidated ?? null,
       generatorAttempt:currentHole?.generatorAttempt ?? null,
       generatorRuleVersion:currentHole?.generatorRuleVersion ?? null,
@@ -8543,6 +8579,21 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   // that owns the active player can launch a shot; completed shot state is
   // then replicated to every other browser in the room.
   const ONLINE_STORAGE_KEY='gyroGolfOnlineRoomV1';
+  const ONLINE_DEVICE_STORAGE_KEY='gyroGolfOnlineDeviceV1';
+  function loadOnlineDeviceId(){
+    try{
+      let id=String(localStorage.getItem(ONLINE_DEVICE_STORAGE_KEY)||'').trim();
+      if(!id){
+        id=globalThis.crypto?.randomUUID?.()||
+          `gyro-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,12)}`;
+        localStorage.setItem(ONLINE_DEVICE_STORAGE_KEY,id);
+      }
+      return id.slice(0,80);
+    }catch(_){
+      return `gyro-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,12)}`;
+    }
+  }
+  const ONLINE_DEVICE_ID=loadOnlineDeviceId();
   const onlineSession={
     socket:null,
     code:'',
@@ -8556,6 +8607,25 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     round:null,
     submitting:false
   };
+  const onlineRemoteLive={
+    active:false,
+    kind:'address',
+    ballState:'rest',
+    swingPhase:'ADDRESS',
+    swingDeg:0,
+    faceDeg:0,
+    targetPosition:new THREE.Vector3(),
+    targetVelocity:new THREE.Vector3(),
+    predictedPosition:new THREE.Vector3(),
+    lastPacketMs:0,
+    lastSequence:-1,
+    transport:'none'
+  };
+  let onlineLastLiveEmitMs=0;
+  let onlineLastSocketLiveEmitMs=0;
+  let onlineLiveSequence=0;
+  let onlineLiveTimer=null;
+  const onlinePeers=new Map();
 
   function onlineInRoom(){
     return !!onlineSession.code;
@@ -8572,6 +8642,275 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       currentPlayerIndex===onlineSession.activeIndex &&
       currentHoleIndex===onlineSession.holeIndex &&
       !onlineSession.submitting
+    );
+  }
+
+  function onlineOwnsActivePlayer(){
+    return onlineGameActive() &&
+      onlineSession.playerIndex===onlineSession.activeIndex &&
+      currentPlayerIndex===onlineSession.activeIndex;
+  }
+
+  function onlineResetRemoteLive(){
+    onlineRemoteLive.active=false;
+    onlineRemoteLive.kind='address';
+    onlineRemoteLive.ballState='rest';
+    onlineRemoteLive.swingPhase='ADDRESS';
+    onlineRemoteLive.swingDeg=0;
+    onlineRemoteLive.faceDeg=0;
+    onlineRemoteLive.lastPacketMs=0;
+    onlineRemoteLive.lastSequence=-1;
+    onlineRemoteLive.transport='none';
+  }
+
+  function onlineDirectPeerCount(){
+    let count=0;
+    onlinePeers.forEach(peer=>{
+      if(peer.channel?.readyState==='open') count++;
+    });
+    return count;
+  }
+
+  function onlineClosePeer(index){
+    const peer=onlinePeers.get(index);
+    if(!peer) return;
+    try{peer.channel?.close();}catch(_){}
+    try{peer.pc?.close();}catch(_){}
+    onlinePeers.delete(index);
+  }
+
+  function onlineCloseAllPeers(){
+    [...onlinePeers.keys()].forEach(onlineClosePeer);
+  }
+
+  function onlineAttachPeerChannel(index,channel){
+    const peer=onlinePeers.get(index);
+    if(!peer) return;
+    peer.channel=channel;
+    channel.binaryType='arraybuffer';
+    channel.onopen=()=>{
+      recordDebugEvent('online-direct-link-open',{peer:index});
+      onlineSyncTurnUI();
+    };
+    channel.onclose=()=>{
+      recordDebugEvent('online-direct-link-closed',{peer:index});
+      onlineSyncTurnUI();
+    };
+    channel.onmessage=message=>{
+      try{
+        const event=JSON.parse(String(message.data||''));
+        event.transport='wifi-direct';
+        onlineApplyLiveShot(event);
+      }catch(_){}
+    };
+  }
+
+  function onlineSignalPeer(targetIndex,signal){
+    if(!onlineSession.socket?.connected) return;
+    onlineSession.socket.emit('rtc:signal',{targetIndex,signal});
+  }
+
+  function onlineCreatePeer(index,initiator=false){
+    if(index===onlineSession.playerIndex || typeof RTCPeerConnection!=='function') return null;
+    const existing=onlinePeers.get(index);
+    if(existing) return existing;
+
+    const pc=new RTCPeerConnection({iceServers:[]});
+    const peer={pc,channel:null,pendingCandidates:[]};
+    onlinePeers.set(index,peer);
+
+    pc.onicecandidate=event=>{
+      if(event.candidate){
+        onlineSignalPeer(index,{candidate:event.candidate.toJSON?.()||event.candidate});
+      }
+    };
+    pc.ondatachannel=event=>onlineAttachPeerChannel(index,event.channel);
+    pc.onconnectionstatechange=()=>{
+      if(['failed','closed'].includes(pc.connectionState)){
+        onlineClosePeer(index);
+        setTimeout(onlineEnsurePeers,600);
+      }
+    };
+
+    if(initiator){
+      onlineAttachPeerChannel(index,pc.createDataChannel('gyro-live',{
+        ordered:false,
+        maxRetransmits:0
+      }));
+      (async()=>{
+        try{
+          await pc.setLocalDescription(await pc.createOffer());
+          onlineSignalPeer(index,{description:pc.localDescription.toJSON?.()||pc.localDescription});
+        }catch(error){
+          recordDebugEvent('online-direct-offer-error',{peer:index,message:String(error?.message||error)});
+        }
+      })();
+    }
+    return peer;
+  }
+
+  async function onlineHandleRtcSignal(message){
+    if(!onlineInRoom() || !message) return;
+    const fromIndex=Number(message.fromIndex);
+    if(!Number.isInteger(fromIndex) || fromIndex===onlineSession.playerIndex) return;
+    const peer=onlineCreatePeer(fromIndex,false);
+    if(!peer) return;
+    const signal=message.signal||{};
+    try{
+      if(signal.description){
+        await peer.pc.setRemoteDescription(signal.description);
+        if(signal.description.type==='offer'){
+          await peer.pc.setLocalDescription(await peer.pc.createAnswer());
+          onlineSignalPeer(fromIndex,{description:peer.pc.localDescription.toJSON?.()||peer.pc.localDescription});
+        }
+        while(peer.pendingCandidates.length){
+          await peer.pc.addIceCandidate(peer.pendingCandidates.shift());
+        }
+      }else if(signal.candidate){
+        if(peer.pc.remoteDescription){
+          await peer.pc.addIceCandidate(signal.candidate);
+        }else{
+          peer.pendingCandidates.push(signal.candidate);
+        }
+      }
+    }catch(error){
+      recordDebugEvent('online-direct-signal-error',{peer:fromIndex,message:String(error?.message||error)});
+    }
+  }
+
+  function onlineEnsurePeers(){
+    if(!onlineInRoom() || onlineSession.playerIndex<0){
+      onlineCloseAllPeers();
+      return;
+    }
+    const wanted=new Set();
+    onlineSession.players.forEach(player=>{
+      if(!player.connected || player.index===onlineSession.playerIndex) return;
+      wanted.add(player.index);
+      if(!onlinePeers.has(player.index)){
+        onlineCreatePeer(player.index,onlineSession.playerIndex<player.index);
+      }
+    });
+    [...onlinePeers.keys()].forEach(index=>{
+      if(!wanted.has(index)) onlineClosePeer(index);
+    });
+  }
+
+  function onlineBroadcastLiveShot(now=performance.now(),force=false){
+    if(!onlineGameActive() || !onlineCanControlTurn()) return;
+    if(!force && now-onlineLastLiveEmitMs<32) return;
+
+    const ballMoving=ballState==='flight' || ballState==='roll' || ballState==='cup';
+    const swinging=swingPerformanceActive() || contactPending || mouseSwingActive;
+    if(!force && !ballMoving && !swinging && now-onlineLastLiveEmitMs<450) return;
+
+    onlineLastLiveEmitMs=now;
+    const payload={
+      playerIndex:onlineSession.playerIndex,
+      holeIndex:currentHoleIndex,
+      sequence:++onlineLiveSequence,
+      kind:ballMoving?'ball':(swinging?'swing':'address'),
+      ballState,
+      swingPhase,
+      swingDeg:visualSwingDeg,
+      faceDeg:visualFaceDeg,
+      position:{x:ball.position.x,y:ball.position.y,z:ball.position.z},
+      velocity:{x:ballVel.x,y:ballVel.y,z:ballVel.z}
+    };
+
+    const encoded=JSON.stringify(payload);
+    let directSent=false;
+    onlinePeers.forEach(peer=>{
+      if(peer.channel?.readyState!=='open') return;
+      try{
+        peer.channel.send(encoded);
+        directSent=true;
+      }catch(_){}
+    });
+
+    // Keep a slower reliable Render stream as a fallback for players who are
+    // not on the same LAN or whose browser blocks a direct data channel.
+    if(
+      onlineSession.socket?.connected &&
+      (force || !directSent || now-onlineLastSocketLiveEmitMs>=110)
+    ){
+      onlineLastSocketLiveEmitMs=now;
+      onlineSession.socket.emit('shot:live',payload);
+    }
+  }
+
+  function onlineApplyLiveShot(event){
+    if(!onlineGameActive() || !event) return;
+    if(Number(event.playerIndex)!==onlineSession.activeIndex) return;
+    if(Number(event.playerIndex)===onlineSession.playerIndex) return;
+    if(Number(event.holeIndex)!==currentHoleIndex) return;
+    const sequence=Number(event.sequence);
+    if(Number.isFinite(sequence) && sequence<=onlineRemoteLive.lastSequence) return;
+    if(Number.isFinite(sequence)) onlineRemoteLive.lastSequence=sequence;
+
+    onlineRemoteLive.active=true;
+    onlineRemoteLive.kind=event.kind||'address';
+    onlineRemoteLive.ballState=event.ballState||'rest';
+    onlineRemoteLive.swingPhase=event.swingPhase||'ADDRESS';
+    onlineRemoteLive.swingDeg=Number(event.swingDeg)||0;
+    onlineRemoteLive.faceDeg=Number(event.faceDeg)||0;
+    onlineRemoteLive.targetPosition.set(
+      Number(event.position?.x)||0,
+      Number(event.position?.y)||0,
+      Number(event.position?.z)||0
+    );
+    onlineRemoteLive.targetVelocity.set(
+      Number(event.velocity?.x)||0,
+      Number(event.velocity?.y)||0,
+      Number(event.velocity?.z)||0
+    );
+    onlineRemoteLive.lastPacketMs=performance.now();
+    onlineRemoteLive.transport=event.transport||'render-relay';
+
+    const active=onlineSession.players[onlineSession.activeIndex];
+    if(event.kind==='ball'){
+      swingPhase='FOLLOW';
+      if(ballState!=='remote'){
+        ball.position.copy(onlineRemoteLive.targetPosition);
+        ball.visible=true;
+        cameraMode='follow';
+        followTimer=0;
+      }
+      ballState='remote';
+      $('swingState').textContent=`WATCHING ${String(active?.name||'PLAYER').toUpperCase()}'S SHOT`;
+    }else{
+      $('swingState').textContent=event.kind==='swing'
+        ? `${String(active?.name||'PLAYER').toUpperCase()} · ${onlineRemoteLive.swingPhase}`
+        : `WATCHING ${String(active?.name||'PLAYER').toUpperCase()}`;
+    }
+    $('swingState').className='status ready';
+  }
+
+  function onlineUpdateRemoteLive(dt){
+    if(!onlineRemoteLive.active || onlineCanControlTurn()) return;
+    if(onlineRemoteLive.kind!=='ball') return;
+    const age=clamp((performance.now()-onlineRemoteLive.lastPacketMs)/1000,0,.14);
+    const alpha=1-Math.exp(-dt*24);
+    onlineRemoteLive.predictedPosition
+      .copy(onlineRemoteLive.targetPosition)
+      .addScaledVector(onlineRemoteLive.targetVelocity,age);
+    if(ball.position.distanceTo(onlineRemoteLive.predictedPosition)>28){
+      ball.position.copy(onlineRemoteLive.predictedPosition);
+    }else{
+      ball.position.lerp(onlineRemoteLive.predictedPosition,alpha);
+    }
+    ballVel.lerp(onlineRemoteLive.targetVelocity,alpha);
+    ballPos.copy(ball.position);
+    updateLiveYardCounter();
+  }
+
+  function ensureOnlineLiveTimer(){
+    if(onlineLiveTimer) return;
+    // Keep networking out of the swing-critical render path. This timer only
+    // serializes a tiny visual snapshot; physics and contact remain local.
+    onlineLiveTimer=setInterval(
+      ()=>onlineBroadcastLiveShot(performance.now()),
+      32
     );
   }
 
@@ -8605,6 +8944,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const leave=$('onlineLeaveBtn');
     const codeInput=$('onlineRoomCodeInput');
     const serverInput=$('onlineServerUrl');
+    const connectionMode=$('playConnectionMode');
     if(!badge || !roster) return;
 
     badge.textContent=joined?`ROOM ${onlineSession.code}`:'OFFLINE';
@@ -8614,10 +8954,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     codeInput.disabled=joined;
     if(serverInput) serverInput.disabled=joined;
     leave.style.display=joined?'inline-block':'none';
+    if(connectionMode){
+      connectionMode.classList.toggle('online',joined);
+      connectionMode.innerHTML=joined
+        ? `<strong>ONLINE PLAYER ${onlineSession.playerIndex+1}</strong><span>This computer owns only ${escapeUiText(onlineSession.players?.[onlineSession.playerIndex]?.name||'your player')}. Live swings and every player's ball are synchronized.</span>`
+        : '<strong>LOCAL PASS-AND-PLAY</strong><span>Players share this computer only. Create or join a room to watch live play on different computers.</span>';
+    }
 
     roster.innerHTML=onlineSession.players.map(player=>
       `<span class="onlinePlayer${player.connected?' connected':''}${player.index===onlineSession.playerIndex?' me':''}">`+
-      `${player.index===onlineSession.hostIndex?'★ ':''}${escapeUiText(player.name)}${player.index===onlineSession.playerIndex?' · You':''}`+
+      `${player.index===onlineSession.hostIndex?'★ ':''}${escapeUiText(player.name)}${player.index===onlineSession.playerIndex?' · You':''}${player.controllerReady?' · 📱':''}`+
       `</span>`
     ).join('');
 
@@ -8627,7 +8973,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       $('startGameBtn').disabled=!host || onlineSession.players.length<2 || onlineSession.players.some(p=>!p.connected);
       codeInput.value=onlineSession.code;
     }else{
-      $('startGameBtn').textContent='Start Game';
+      $('startGameBtn').textContent=startPlayerCount>1?'Start Local Pass-and-Play':'Start Game';
       $('startGameBtn').disabled=false;
     }
   }
@@ -8647,6 +8993,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         ? `Room ${onlineSession.code} created. Share the code; you can start when another player joins.`
         : `Joined room ${onlineSession.code}. The host will start the shared course.`
     );
+
+    // A phone may already be connected before the browser creates/joins the
+    // room. Claim it immediately so another computer cannot silently poll the
+    // same phyphox address when its turn begins.
+    if(connected){
+      onlineClaimController(normalizeControllerUrl(activeControllerBase()))
+        .then(claim=>{
+          if(claim?.ok) return;
+          suspendControllerForOnlineSpectator();
+          onlineSetStatus(claim?.error||'That phone is already assigned to another player.',true);
+        });
+    }
   }
 
   function onlineApplyRoomState(room){
@@ -8688,6 +9046,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       if(mine && $('onlinePlayerName')) $('onlinePlayerName').value=mine.name;
     }
     onlineRenderLobby();
+    onlineEnsurePeers();
     if(gameStarted) onlineSyncTurnUI();
   }
 
@@ -8698,7 +9057,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
     const name=($('onlinePlayerName').value||'Player 1').trim();
     onlineSetStatus('Creating room…');
-    onlineSession.socket.emit('room:create',{name},onlineAdoptRoom);
+    onlineSession.socket.emit('room:create',{name,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
   }
 
   function onlineJoinRoom(){
@@ -8713,11 +9072,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       return;
     }
     onlineSetStatus('Joining room…');
-    onlineSession.socket.emit('room:join',{name,code},onlineAdoptRoom);
+    onlineSession.socket.emit('room:join',{name,code,deviceId:ONLINE_DEVICE_ID},onlineAdoptRoom);
   }
 
-  function onlineLeaveRoom(){
-    onlineSession.socket?.emit('room:leave');
+  function onlineLeaveRoom(notifyServer=true,message='Offline play restored. Create or join a room whenever you want.'){
+    const restorePhone=onlineInRoom();
+    if(notifyServer) onlineSession.socket?.emit('room:leave');
+    onlineCloseAllPeers();
     onlineSession.code='';
     onlineSession.token='';
     onlineSession.playerIndex=-1;
@@ -8728,11 +9089,49 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineSession.players=[];
     onlineSession.round=null;
     onlineSession.submitting=false;
+    onlineResetRemoteLive();
+    currentPlayerIndex=0;
     onlineSaveSession();
     onlineRenderLobby();
-    onlineSetStatus('Offline play restored. Create or join a room whenever you want.');
+    onlineSetStatus(message,!notifyServer);
     const toast=$('onlineTurnToast');
     toast?.classList.remove('show','yours');
+
+    // Spectator mode intentionally stops local polling. Restore Player 1's
+    // phone immediately when returning to offline play so a refresh is never
+    // required before starting a single-player round.
+    if(restorePhone){
+      switchControllerForPlayer(0,true);
+    }
+  }
+
+  function onlineHandleRoomClosed(event={}){
+    if(!onlineInRoom()) return;
+    const reason=String(event.reason||'A player disconnected. The online room was closed.');
+    const wasPlaying=gameStarted;
+    onlineLeaveRoom(false,reason);
+    if(wasPlaying){
+      exitToMainMenu();
+      onlineSetStatus(reason,true);
+      $('status').textContent=reason;
+      $('status').className='status bad';
+    }
+  }
+
+  function onlineClaimController(controllerKey){
+    return new Promise(resolve=>{
+      if(!onlineInRoom() || !onlineSession.socket?.connected){
+        resolve({ok:!onlineInRoom(),error:'Online room connection was lost.'});
+        return;
+      }
+      const timeout=setTimeout(()=>{
+        resolve({ok:false,error:'The online server is outdated or did not answer the controller check. Upload the new server.js to GitHub.'});
+      },3500);
+      onlineSession.socket.emit('controller:claim',{controllerKey,deviceId:ONLINE_DEVICE_ID},result=>{
+        clearTimeout(timeout);
+        resolve(result||{ok:false,error:'Controller ownership check timed out.'});
+      });
+    });
   }
 
   function onlineStartRequested(){
@@ -8773,6 +9172,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineSession.status='playing';
     onlineSession.activeIndex=room.activeIndex;
     onlineSession.holeIndex=room.holeIndex;
+    onlineResetRemoteLive();
     if(room.holeIndex>0 && room.holeIndex<HOLES.length){
       loadHole(room.holeIndex);
     }
@@ -8821,6 +9221,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function onlineApplyShotState(event){
     if(!gameStarted || event.holeIndex!==currentHoleIndex) return;
+    onlineResetRemoteLive();
     const player=players[event.playerIndex];
     if(!player) return;
     const state=ensurePlayerHoleState(player,event.holeIndex);
@@ -8927,6 +9328,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function onlineLoadAdvancedHole(room){
+    onlineResetRemoteLive();
     onlineApplyRoomState(room);
     if(!gameStarted || room.holeIndex>=HOLES.length) return;
     $('replay').disabled=false;
@@ -8945,11 +9347,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(toast){
       toast.classList.add('show');
       toast.classList.toggle('yours',yours);
+      const liveLink=onlineDirectPeerCount()>0?' · LIVE WI-FI':' · LIVE RELAY';
       toast.textContent=onlineSession.status==='hole-complete'
         ? 'Online hole complete'
-        : (yours?'YOUR TURN · swing when ready':`WAITING FOR ${String(active?.name||'PLAYER').toUpperCase()}`);
+        : (yours?`YOUR TURN · swing when ready${liveLink}`:`WATCHING ${String(active?.name||'PLAYER').toUpperCase()}${liveLink}`);
     }
     if(!yours){
+      // A spectator must not keep polling its own phone while another browser
+      // owns the turn. Otherwise local sensor poses can overwrite the incoming
+      // live golfer animation and make one controller appear to move both players.
+      suspendControllerForOnlineSpectator();
       cancelAutoArm();
       armed=false;
       $('swingState').textContent='ONLINE · WAITING';
@@ -8965,6 +9372,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function initializeOnlineRooms(){
+    ensureOnlineLiveTimer();
     if(typeof window.io!=='function'){
       onlineSetStatus('Online rooms are available after this project is deployed. Offline play still works.');
       return;
@@ -8989,7 +9397,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       try{
         const saved=JSON.parse(localStorage.getItem(ONLINE_STORAGE_KEY)||'null');
         if(saved?.code && saved?.token){
-          socket.emit('room:resume',saved,result=>{
+          socket.emit('room:resume',{...saved,deviceId:ONLINE_DEVICE_ID},result=>{
             if(result?.ok){
               onlineAdoptRoom(result);
               if(result.room?.round) onlineBeginSyncedGame(result.room);
@@ -9001,15 +9409,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       }catch(_){}
     });
     socket.on('disconnect',()=>{
-      onlineSetStatus('Online server disconnected. Reconnecting automatically…',true);
-      if(gameStarted){
-        cancelAutoArm();
-        armed=false;
+      if(onlineInRoom()){
+        onlineHandleRoomClosed({reason:'Online connection lost. The room was closed for every player.'});
+      }else{
+        onlineSetStatus('Online server disconnected. Reconnecting automatically…',true);
       }
     });
     socket.on('room:state',onlineApplyRoomState);
     socket.on('game:started',onlineBeginSyncedGame);
     socket.on('turn:state',onlineApplyShotState);
+    socket.on('shot:live',onlineApplyLiveShot);
+    socket.on('rtc:signal',onlineHandleRtcSignal);
+    socket.on('room:closed',onlineHandleRoomClosed);
     socket.on('hole:advanced',onlineLoadAdvancedHole);
     socket.on('hole:skipped',onlineApplySkippedHole);
     socket.on('connect_error',()=>onlineSetStatus('Cannot reach the online server yet.',true));
@@ -9183,6 +9594,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     );
     ball.position.copy(ballPos);
     shotStart.copy(ballPos);
+    updateOtherPlayerBalls(performance.now(),true);
 
     lastShotText=state.lastShotText||'—';
     lastShape=state.lastShape||'—';
@@ -9211,7 +9623,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     turnTransitionBusy=false;
 
-    switchControllerForPlayer(index);
+    if(onlineGameActive() && onlineSession.playerIndex!==index){
+      suspendControllerForOnlineSpectator();
+    }else{
+      switchControllerForPlayer(index,true);
+    }
 
     if(hasAddress && autoArm){
       scheduleAutoArm(700);
@@ -12301,25 +12717,32 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   function controllerSlotForPlayer(index=currentPlayerIndex){
     // Each online browser uses its own locally configured phone. Player 2 on
     // the server is not Player 2 in this browser's local phone list.
-    if(onlineGameActive()) return 0;
-    return playerControllerUrls[index]?index:0;
+    if(onlineInRoom()) return 0;
+    // Local multiplayer is also identity-bound. A blank Player 2/3/4 slot is
+    // mouse-only; it must never inherit Player 1's sensor stream.
+    return clamp(Number(index)||0,0,3);
   }
 
   function activeControllerBase(){
-    return playerControllerUrls[activeControllerSlot]||playerControllerUrls[0]||DEFAULT_CONTROLLER_URL;
+    return playerControllerUrls[activeControllerSlot]||'';
   }
 
   function renderControllerRows(){
     const root=$('controllerRows');
     if(!root) return;
-    root.innerHTML=[0,1,2,3].map(i=>{
+    const controllerIndexes=onlineInRoom()?[0]:[0,1,2,3];
+    root.innerHTML=controllerIndexes.map(i=>{
       const state=playerControllerStates[i];
-      const shared=i>0&&!playerControllerUrls[i];
-      const label=state.online?'LIVE':(state.error?'RETRY':(shared?'P1 SHARED':'CHECK'));
+      const mouseOnly=!playerControllerUrls[i];
+      const label=state.online?'LIVE':(state.error?'RETRY':(mouseOnly?'MOUSE':'CHECK'));
       const stateClass=state.online?' live':(state.error?' bad':'');
       const active=i===controllerSlotForPlayer(currentPlayerIndex)?' active':'';
-      const playerName=players?.[i]?.name||`Player ${i+1}`;
-      return `<div class="controllerRow${active}" data-controller-row="${i}"><span class="controllerPlayer">P${i+1} · ${escapeUiText(playerName)}</span><input class="controllerUrl" data-controller-url="${i}" type="text" value="${escapeUiText(playerControllerUrls[i])}" placeholder="${i===0?'192.168.1.202':'Blank = share P1'}" aria-label="Player ${i+1} phyphox IP address" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"><button class="controllerState${stateClass}" data-connect-controller="${i}" type="button">${label}</button></div>`;
+      const onlinePlayer=onlineSession.players?.[onlineSession.playerIndex];
+      const playerName=onlineInRoom()
+        ? (onlinePlayer?.name||`Player ${onlineSession.playerIndex+1}`)
+        : (players?.[i]?.name||`Player ${i+1}`);
+      const rowLabel=onlineInRoom()?`THIS PC · ${playerName}`:`P${i+1} · ${playerName}`;
+      return `<div class="controllerRow${active}" data-controller-row="${i}"><span class="controllerPlayer">${escapeUiText(rowLabel)}</span><input class="controllerUrl" data-controller-url="${i}" type="text" value="${escapeUiText(playerControllerUrls[i])}" placeholder="${i===0?'192.168.1.202':'Phone IP or blank = mouse'}" aria-label="${escapeUiText(playerName)} phyphox IP address" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"><button class="controllerState${stateClass}" data-connect-controller="${i}" type="button">${label}</button></div>`;
     }).join('');
 
     root.querySelectorAll('[data-controller-url]').forEach(input=>{
@@ -12337,10 +12760,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         playerControllerStates[i].error='';
         savePlayerControllerUrls();
         renderControllerRows();
-        if(
-          currentPlayerIndex===i ||
-          (i===0&&!playerControllerUrls[currentPlayerIndex])
-        ) switchControllerForPlayer(currentPlayerIndex,true);
+        if(currentPlayerIndex===i || (onlineInRoom()&&i===0)){
+          switchControllerForPlayer(currentPlayerIndex,true);
+        }
       });
     });
 
@@ -12382,17 +12804,39 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     const url=playerControllerUrls[slot];
     if(!url){
-      $('status').textContent=`No phyphox address saved for Player ${index+1}`;
-      $('status').className='status bad';
+      sensorFallbackActive=true;
+      syncMouseAimUI();
+      $('status').textContent=`Player ${index+1} has no phone assigned · mouse controls only`;
+      $('status').className='status ready';
       return;
     }
 
-    const shared=slot!==index;
-    $('status').textContent=shared
-      ? `Player ${index+1} uses Player 1's phone · pass the controller`
+    $('status').textContent=onlineInRoom()
+      ? `Connecting this computer's phone for ${activePlayer().name}…`
       : `Switching to Player ${index+1}'s phone…`;
     $('status').className='status ready';
     connectPhone(index,{turnSwitch:true});
+  }
+
+  function suspendControllerForOnlineSpectator(){
+    const hadActiveController=connected || !!pollTimer;
+    stopSensorPolling();
+    if(hadActiveController) controllerGeneration++;
+    connected=false;
+    buffers=null;
+    hasAddress=false;
+    hasAttitude=false;
+    armed=false;
+    contactPending=false;
+    contactLocked=false;
+    cancelAutoArm();
+    syncMouseAimUI();
+    if(hadActiveController){
+      recordDebugEvent('online-spectator-controller-suspended',{
+        localPlayer:onlineSession.playerIndex,
+        activePlayer:onlineSession.activeIndex
+      });
+    }
   }
 
   // Restore the cadence used by the earlier reliable controller. Polling the
@@ -13273,6 +13717,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       if(next==='DOWNSWING'){
         playSwingWhoosh();
+      }
+
+      if(onlineGameActive() && onlineCanControlTurn()){
+        onlineBroadcastLiveShot(performance.now(),true);
       }
     }
 
@@ -18078,6 +18526,112 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   scene.add(ball);
 
+  // Keep each inactive player's last resting ball visible. These are visual
+  // markers only; the active ball remains the sole physics object.
+  const otherPlayerBallGroup=new THREE.Group();
+  otherPlayerBallGroup.name='other-player-balls';
+  scene.add(otherPlayerBallGroup);
+  const otherPlayerBalls=[];
+  let lastOtherPlayerBallUpdateMs=0;
+
+  for(let i=0;i<4;i++){
+    const marker=new THREE.Group();
+    const markerBall=new THREE.Mesh(
+      new THREE.SphereGeometry(BALL_VISUAL_RADIUS,24,16),
+      new THREE.MeshStandardMaterial({
+        color:0xffffff,
+        roughness:.24,
+        metalness:0
+      })
+    );
+    markerBall.castShadow=true;
+    markerBall.receiveShadow=true;
+
+    const groundRing=new THREE.Mesh(
+      new THREE.RingGeometry(BALL_VISUAL_RADIUS*1.65,BALL_VISUAL_RADIUS*3.05,32),
+      new THREE.MeshBasicMaterial({
+        color:0xffffff,
+        transparent:true,
+        opacity:.72,
+        depthWrite:false,
+        side:THREE.DoubleSide
+      })
+    );
+    groundRing.rotation.x=-Math.PI/2;
+    groundRing.position.y=-BALL_VISUAL_RADIUS*.88;
+
+    const labelCanvas=document.createElement('canvas');
+    labelCanvas.width=128;
+    labelCanvas.height=64;
+    const labelCtx=labelCanvas.getContext('2d');
+    labelCtx.fillStyle='rgba(5,28,18,.90)';
+    labelCtx.beginPath();
+    labelCtx.roundRect(5,5,118,54,22);
+    labelCtx.fill();
+    labelCtx.fillStyle='#ffffff';
+    labelCtx.font='900 30px system-ui';
+    labelCtx.textAlign='center';
+    labelCtx.textBaseline='middle';
+    labelCtx.fillText(`P${i+1} BALL`,64,32);
+    const labelTexture=new THREE.CanvasTexture(labelCanvas);
+    labelTexture.colorSpace=THREE.SRGBColorSpace;
+    const label=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:labelTexture,
+      transparent:true,
+      depthWrite:false,
+      depthTest:true
+    }));
+    label.position.y=.68;
+    label.scale.set(1.15,.58,1);
+
+    const stem=new THREE.Mesh(
+      new THREE.CylinderGeometry(.012,.012,.45,8),
+      new THREE.MeshBasicMaterial({color:0xffffff})
+    );
+    stem.position.y=.34;
+
+    marker.add(markerBall,groundRing,stem,label);
+    marker.visible=false;
+    otherPlayerBallGroup.add(marker);
+    otherPlayerBalls.push({marker,markerBall,groundRing,stem,label});
+  }
+
+  function updateOtherPlayerBalls(now=performance.now(),force=false){
+    if(!force && now-lastOtherPlayerBallUpdateMs<90) return;
+    lastOtherPlayerBallUpdateMs=now;
+
+    for(let i=0;i<otherPlayerBalls.length;i++){
+      const visual=otherPlayerBalls[i];
+      const player=players[i];
+      const state=player&&gameStarted
+        ? ensurePlayerHoleState(player,currentHoleIndex)
+        : null;
+      const show=!!(
+        gameStarted &&
+        playerCount>1 &&
+        i!==currentPlayerIndex &&
+        state &&
+        Number.isFinite(state.x) &&
+        Number.isFinite(state.z)
+      );
+      visual.marker.visible=show;
+      if(!show) continue;
+
+      let x=state.x;
+      let z=state.z;
+      // On the tee several balls can occupy the exact same saved location.
+      // A tiny display-only fan keeps every player's marker readable.
+      if(Math.hypot(x-ballPos.x,z-ballPos.z)<.22){
+        const fan=(i-currentPlayerIndex)*BALL_VISUAL_RADIUS*.72;
+        x+=fan;
+      }
+      visual.marker.position.set(x,terrainBallYAt(x,z),z);
+      visual.markerBall.material.color.set(player.ballColor||player.color||'#ffffff');
+      visual.groundRing.material.color.set(player.shirtColor||player.color||'#ffffff');
+      visual.stem.material.color.set(player.shirtColor||player.color||'#ffffff');
+    }
+  }
+
   // Hybrid collision visualization: faint sphere shows the actual physical assist zone.
   const impactZone=new THREE.Mesh(
     new THREE.SphereGeometry(PHYSICAL_IMPACT_RADIUS,20,14),
@@ -20007,9 +20561,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // network outage indefinitely.
     const predictionHorizonMs=
       clamp(
-        controllerVisualPacketIntervalMs*1.18,
-        55,
-        320
+        controllerVisualPacketIntervalMs*2.2,
+        110,
+        560
       );
 
     const ageSeconds=
@@ -20112,7 +20666,34 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       }
     }
 
-    if(mouseSwingActive){
+    if(onlineRemoteLive.active && !onlineCanControlTurn() && onlineRemoteLive.kind!=='ball'){
+      const alpha=1-Math.exp(-dt*28);
+      visualSwingDeg=THREE.MathUtils.lerp(
+        visualSwingDeg,
+        onlineRemoteLive.swingDeg,
+        alpha
+      );
+      visualFaceDeg=THREE.MathUtils.lerp(
+        visualFaceDeg,
+        onlineRemoteLive.faceDeg,
+        alpha
+      );
+      swingPhase=onlineRemoteLive.swingPhase;
+      dataArcQ.setFromAxisAngle(
+        DATA_LOCAL_X,
+        THREE.MathUtils.degToRad(-visualSwingDeg)
+      );
+      dataFaceLocalQ.setFromAxisAngle(
+        DATA_LOCAL_Y,
+        THREE.MathUtils.degToRad(visualFaceDeg)
+      );
+      visualClubQ
+        .copy(addressWorldQ)
+        .multiply(dataArcQ)
+        .multiply(dataFaceLocalQ)
+        .normalize();
+      clubPivot.quaternion.copy(visualClubQ);
+    }else if(mouseSwingActive){
       visualSwingDeg=mouseSwingVisualAngle();
       visualFaceDeg=0;
       dataArcQ.setFromAxisAngle(
@@ -20168,11 +20749,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       // response added noticeable latency to 700–900°/s downswings.
       const swingResponse=
         visualSpeed>420
-          ? 64
+          ? 24
           : (
               visualSpeed>150
-                ? 48
-                : 30
+                ? 18
+                : 12
             );
 
       const swingAlpha=
@@ -28094,7 +28675,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function beginDataImpact(){
-    if(ballState!=='rest' || holeComplete || contactLocked || !armed) return;
+    if(ballState!=='rest' || holeComplete || contactLocked || !armed || !onlineCanControlTurn()) return;
 
     labEnsureShotTrace();
 
@@ -28157,7 +28738,6 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function finalizeDataImpact(){
     if(!contactPending || ballState!=='rest') return;
-    if(!onlineCanControlTurn()) return;
 
     contactPending=false;
     armed=false;
@@ -28249,6 +28829,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     cameraMode='follow';
     followTimer=0;
     strokes++;
+
+    // Do not wait for the fixed live timer to reveal that the ball launched.
+    onlineBroadcastLiveShot(performance.now(),true);
 
     const steer=impactSteeringDeg;
 
@@ -29070,12 +29653,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     announceScore(strokes,currentHole.par);
     startHoleCelebration(excitement);
 
-    // Online rooms let the server choose the next active browser. The local
-    // client has already recorded this score, so submit it and wait instead
-    // of rotating the shared roster locally.
+    // Online turns are authoritative on the room server. Do not rotate the
+    // locally simulated roster here; submit the holed result and let every
+    // browser advance to the same next player from turn:state.
     if(onlineGameActive()){
-      ball.visible=false;
-      updateScorecard();
+      saveActivePlayerHoleState();
       onlineSubmitTurn(true);
       return;
     }
@@ -29570,7 +30152,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     updateCaddieUI();
     renderLastMissTrail(openingState.missTrace);
 
-    if(gameStarted) switchControllerForPlayer(currentPlayerIndex);
+    if(gameStarted){
+      if(onlineGameActive() && onlineSession.playerIndex!==currentPlayerIndex){
+        suspendControllerForOnlineSpectator();
+      }else{
+        switchControllerForPlayer(currentPlayerIndex,true);
+      }
+    }
 
     if(connected && !hasAddress) autoCalibrationPending=true;
     if(hasAddress && autoArm) scheduleAutoArm(1100);
@@ -29583,11 +30171,6 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function skipCurrentHole(){
     if(!gameStarted || holeComplete || !currentHole){
-      return;
-    }
-
-    if(onlineGameActive()){
-      onlineSkipCurrentHole();
       return;
     }
 
@@ -30305,6 +30888,52 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   // ---------------- SENSOR ----------------
+  function phoneConnectionNeedsLocalCopy(base=activeControllerBase()){
+    return location.protocol==='https:' && /^http:\/\//i.test(String(base||''));
+  }
+
+  function syncPhoneConnectionNotice(){
+    const notice=$('phoneBridgeNotice');
+    if(!notice) return;
+    notice.classList.toggle('show',location.protocol==='https:');
+  }
+
+  async function downloadPhoneCompatibleGame(){
+    const button=$('downloadLocalController');
+    const originalText=button?.textContent||'Download Phone-Compatible Game';
+    if(button){
+      button.disabled=true;
+      button.textContent='Preparing local copy…';
+    }
+    try{
+      const response=await fetch(location.href,{cache:'no-store'});
+      if(!response.ok) throw new Error('HTTP '+response.status);
+      let html=await response.text();
+      const serverUrl=location.origin;
+      const boot=`<script>try{localStorage.setItem('gyroGolfOnlineServerUrl',${JSON.stringify(serverUrl)})}catch(e){}<\/script>`;
+      html=html.replace('<body>','<body>'+boot);
+      const blob=new Blob([html],{type:'text/html'});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement('a');
+      link.href=url;
+      link.download='Gyro Golf World Tour Online.html';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),2500);
+      $('status').textContent='Local phone-compatible game downloaded · open it, then connect phyphox';
+      $('status').className='status good';
+    }catch(error){
+      $('status').textContent='Could not prepare the local copy: '+String(error?.message||error);
+      $('status').className='status bad';
+    }finally{
+      if(button){
+        button.disabled=false;
+        button.textContent=originalText;
+      }
+    }
+  }
+
   function last(obj,name){
     const a=obj?.buffer?.[name]?.buffer;
     if(!Array.isArray(a)||!a.length)return 0;
@@ -30313,7 +30942,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   async function getJSON(path,base=activeControllerBase()){
-    const r=await fetch(base+path,{cache:'no-store'});
+    let r;
+    try{
+      r=await fetch(base+path,{cache:'no-store'});
+    }catch(error){
+      if(phoneConnectionNeedsLocalCopy(base)){
+        syncPhoneConnectionNotice();
+        throw new Error('Browser blocked the local phyphox phone. Use Download Phone-Compatible Game below.');
+      }
+      throw error;
+    }
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();
   }
@@ -30376,10 +31014,25 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(activeRequest) activeControllerSlot=slot;
 
     if(!base){
-      $('status').textContent=`Enter a phyphox IP for Player ${playerIndex+1}`;
-      $('status').className='status bad';
+      if(activeRequest){
+        connected=false;
+        sensorFallbackActive=true;
+        syncMouseAimUI();
+      }
+      $('status').textContent=`Player ${playerIndex+1} is mouse-only · enter a phyphox IP to assign a phone`;
+      $('status').className='status ready';
       return false;
     }
+
+    recordDebugEvent('phone-connect-attempt',{
+      player:playerIndex,
+      slot,
+      pageProtocol:location.protocol,
+      controllerProtocol:String(base).split(':')[0]||'unknown',
+      onlineRoom:onlineSession.code||null,
+      ownsTurn:onlineCanControlTurn()
+    });
+    syncPhoneConnectionNotice();
 
     if(!fallbackRetry){
       $('status').textContent=`Connecting Player ${playerIndex+1}…`;
@@ -30392,6 +31045,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       if(!attitudeBuffers || !attitudeBuffers.x || !attitudeBuffers.y || !attitudeBuffers.z || !attitudeBuffers.w){
         throw new Error('Open Gyro Golf Motion Controller in phyphox.');
       }
+
+      if(onlineInRoom()){
+        const claim=await onlineClaimController(normalizeControllerUrl(base));
+        if(!claim?.ok){
+          throw new Error(claim?.error||'That phone is already assigned to another online player.');
+        }
+      }
+
       const nextBuffers={...attitudeBuffers,...(motionBuffers||{})};
       playerControllerStates[slot].online=true;
       playerControllerStates[slot].buffers=nextBuffers;
@@ -30428,10 +31089,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         // Some phyphox builds may already be running and reject/ignore start.
       }
 
-      const shared=slot!==playerIndex;
-      $('status').textContent=shared
-        ? `Player ${playerIndex+1} sharing Player 1 phone · hold address still for 2 seconds`
-        : `Player ${playerIndex+1} connected · hold address still for 2 seconds`;
+      $('status').textContent=`${onlineInRoom()?'This computer':`Player ${playerIndex+1}`} connected · hold address still for 2 seconds`;
       $('status').className='status ready';
       $('connect').textContent='Reconnect';$('startSensor').disabled=false;$('arm').disabled=false;$('calibrateClub').disabled=false;
       renderControllerRows();
@@ -30448,12 +31106,17 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         ? 'Phone disconnected · mouse controls active · reconnecting in background'
         : 'Connection failed: '+e.message;
       $('status').className=fallbackRetry?'status ready':'status bad';
+      recordDebugEvent('phone-connect-failed',{
+        player:playerIndex,
+        slot,
+        message:String(e?.message||e)
+      });
       return false;
     }
   }
 
   async function connectAllPlayerPhones(){
-    const configured=[0,1,2,3].filter(i=>playerControllerUrls[i]);
+    const configured=(onlineInRoom()?[0]:[0,1,2,3]).filter(i=>playerControllerUrls[i]);
     $('status').textContent=`Checking ${configured.length} phone${configured.length===1?'':'s'}…`;
     $('status').className='status';
 
@@ -30787,7 +31450,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function armSwing(){
-    if(!gameStarted||!connected||ballState!=='rest'||holeComplete||!onlineCanControlTurn())return;
+    if(!gameStarted||!connected||ballState!=='rest'||holeComplete)return;
+
+    if(!onlineCanControlTurn()){
+      armed=false;
+      $('swingState').textContent='WAITING FOR ONLINE TURN';
+      $('swingState').className='status ready';
+      return;
+    }
 
     const now=performance.now();
     if(now<emergencyInputLockUntil){
@@ -31116,7 +31786,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
   }
   async function pollSensors(){
-    if(!connected || pollBusy) return;
+    if(!connected) return;
+    if(pollBusy){
+      // A controller/mode handoff can finish while the previous phone request
+      // is still unwinding. Keep the new generation alive instead of losing
+      // its only scheduled poll and requiring a full page refresh.
+      scheduleSensorPoll(12);
+      return;
+    }
 
     pollBusy=true;
     const pollGeneration=controllerGeneration;
@@ -32191,7 +32868,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   // ---------------- TEST SHOT ----------------
   function testShot(){
-    if(ballState!=='rest'||holeComplete)return;
+    if(ballState!=='rest'||holeComplete||!onlineCanControlTurn())return;
 
     // Synthetic clean 85% shot for course testing without a phone swing.
     controllerMaxBackDeg=95;
@@ -32343,6 +33020,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
               : 1
           );
       for(let i=0;i<steps;i++)physicsStep(dt/steps);
+
+      // Spectators never simulate another player's shot locally. They render
+      // the active browser's lossy 20 Hz state with frame-rate interpolation.
+      onlineUpdateRemoteLive(dt);
+      updateOtherPlayerBalls(now);
 
       updateBallStateWatchdog(dt);
       updateCupCapture(dt);
@@ -32629,6 +33311,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     btn.addEventListener('click',()=>{
       startPlayerCount=Number(btn.dataset.startCount);
       renderStartNames();
+      onlineRenderLobby();
     });
   });
 
@@ -32672,21 +33355,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     startOpeningMusic();
     playMenuClick();
   },true);
+  // This must route through the room-aware dispatcher. Calling
+  // beginGameFromStart directly silently created a local pass-and-play match
+  // even while the browser appeared to be inside an online room.
   $('startGameBtn').addEventListener('click',onlineStartRequested);
-  $('onlineCreateBtn').addEventListener('click',onlineCreateRoom);
-  $('onlineJoinBtn').addEventListener('click',onlineJoinRoom);
-  $('onlineLeaveBtn').addEventListener('click',onlineLeaveRoom);
-  $('onlineRoomCodeInput').addEventListener('input',event=>{
-    event.target.value=event.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-  });
-  $('onlinePlayerName').addEventListener('change',event=>{
-    const name=(event.target.value||'Player').trim().slice(0,18);
-    event.target.value=name;
-    if(onlineInRoom()) onlineSession.socket?.emit('room:rename',{name});
-  });
-  $('onlineServerUrl').addEventListener('change',()=>{
-    if(!onlineInRoom()) initializeOnlineRooms();
-  });
 
   document.querySelectorAll('[data-player-count]').forEach(btn=>btn.addEventListener('click',()=>setPlayerCount(Number(btn.dataset.playerCount))));
 
@@ -32760,6 +33432,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   // ---------------- EVENTS ----------------
   $('connect').addEventListener('click',()=>{ensureAudio();connectPhone();});
+  $('downloadLocalController')?.addEventListener('click',downloadPhoneCompatibleGame);
   $('connectAllPhones').addEventListener('click',()=>{ensureAudio();connectAllPlayerPhones();});
   $('startSensor').addEventListener('click',startPhyphox);
   $('calibrateClub').addEventListener('click',calibrateClub);
@@ -32820,7 +33493,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   $('resetCamera').addEventListener('click',setAddressCamera);
   $('recoverClub').addEventListener('click',()=>emergencyResetEverything('manual'));
   $('resetHole').addEventListener('click',resetHole);
-  $('replay').addEventListener('click',onlineAdvanceRequested);
+  $('replay').addEventListener('click',nextHoleOrReplayCourse);
 
   // Emergency fallback: press R while not typing in a control.
   window.addEventListener('keydown',e=>{
@@ -32836,11 +33509,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   applyHoleLayout();
   selectStartGameMode('stroke');
   renderStartNames();
-  initializeOnlineRooms();
   renderStatisticsTab();
   syncCourseDesignerUI();
   renderTourPanel();
   renderControllerRows();
+  syncPhoneConnectionNotice();
   setStartTab('play');
   initializeSwingLab();
   scheduleHudSafeSpacing();
