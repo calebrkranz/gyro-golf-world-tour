@@ -1838,7 +1838,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 6</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Online Fix 7</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1866,7 +1866,7 @@ label.message{display:block;margin-top:9px}
           <div class="startLogo">Gyro Golf <span>World Tour</span></div>
           <div class="startSub">Local motion-controlled golf</div>
         </div>
-        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 6</b></div></div>
+        <div class="startHeroActions"><button id="menuMusicMuteBtn" class="menuMusicMuteBtn" type="button" aria-label="Mute menu music">🔊 Music</button><div class="startEdition">TOUR EDITION <b>v107 · ONLINE FIX 7</b></div></div>
       </div>
       <div class="startFeatureStrip">
         <span>40 hole architectures</span>
@@ -2566,7 +2566,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-online6';
+  const DEBUG_VERSION='v107-online7';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -33360,6 +33360,36 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   // even while the browser appeared to be inside an online room.
   $('startGameBtn').addEventListener('click',onlineStartRequested);
 
+  // Online lobby controls. These handlers must be registered explicitly;
+  // otherwise the room UI renders but Create/Join are inert and the socket
+  // connection is never initialized.
+  $('onlineCreateBtn').addEventListener('click',onlineCreateRoom);
+  $('onlineJoinBtn').addEventListener('click',onlineJoinRoom);
+  $('onlineLeaveBtn').addEventListener('click',()=>onlineLeaveRoom(true));
+  $('onlineRoomCodeInput').addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      event.preventDefault();
+      onlineJoinRoom();
+    }
+  });
+  $('onlineServerUrl').addEventListener('keydown',event=>{
+    if(event.key==='Enter'){
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  });
+  $('onlineServerUrl').addEventListener('change',()=>{
+    const entered=String($('onlineServerUrl').value||'').trim().replace(/\/+$/,'');
+    try{localStorage.setItem('gyroGolfOnlineServerUrl',entered)}catch(_){}
+    initializeOnlineRooms();
+  });
+  $('onlinePlayerName').addEventListener('change',()=>{
+    if(!onlineInRoom()) return;
+    onlineSession.socket?.emit('room:rename',{
+      name:String($('onlinePlayerName').value||'Player').trim()
+    });
+  });
+
   document.querySelectorAll('[data-player-count]').forEach(btn=>btn.addEventListener('click',()=>setPlayerCount(Number(btn.dataset.playerCount))));
 
   $('settingsBtn').addEventListener('click',()=>setSettingsOpen(true));
@@ -33522,6 +33552,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   updateShotGuideUI();
   syncMouseAimUI();
   syncOpeningMusicButtons();
+  initializeOnlineRooms();
   startOpeningMusic();
   window.setTimeout(()=>{
     const gate=$('titleAudioGate');

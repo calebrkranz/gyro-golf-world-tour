@@ -23,3 +23,6 @@ Upload BOTH public/index.html and server.js from this package. The client now
 routes Start Game through the online room and the server locks each player to a
 unique browser and phone. Blank local phone rows use mouse controls; they never
 share Player 1's phone.
+
+ONLINE FIX 7 also initializes the room connection at startup and wires the
+Create Room, Join Room, Leave Room, room-code Enter key, and server URL controls.
