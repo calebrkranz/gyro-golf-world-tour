@@ -2043,7 +2043,7 @@ label.message{display:block;margin-top:9px}
           <button id="onlineJoinBtn" class="secondary" type="button">Join Room</button>
           <input id="onlineServerUrl" style="grid-column:1/-1" placeholder="Online server URL · automatic when playing on Render" aria-label="Online server URL">
         </div>
-        <div id="onlineLobbyStatus" class="onlineLobbyStatus">Create a room, share its six-character code, then start Stroke Play or Island Hopper. Every computer can use its own phone or mouse controls.</div>
+        <div id="onlineLobbyStatus" class="onlineLobbyStatus">Create a room, share its six-character code, then start Stroke Play or Island Hopper. Same-Wi-Fi computers use a direct live link automatically. Give every phone a different phyphox IP.</div>
         <div id="onlineRoster" class="onlineRoster"></div>
         <button id="onlineLeaveBtn" class="secondary" type="button" style="display:none;margin-top:10px">Leave Online Room</button>
       </div>
@@ -2672,6 +2672,27 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         ),
       controllerVisualPacketIntervalMs:
         +controllerVisualPacketIntervalMs.toFixed(1),
+      online:(()=>{
+        try{
+          return {
+            inRoom:onlineInRoom(),
+            gameActive:onlineGameActive(),
+            socketConnected:!!onlineSession.socket?.connected,
+            playerIndex:onlineSession.playerIndex,
+            activeIndex:onlineSession.activeIndex,
+            roomStatus:onlineSession.status,
+            directPeers:onlineDirectPeerCount(),
+            remoteLiveActive:onlineRemoteLive.active,
+            remoteTransport:onlineRemoteLive.transport,
+            remotePacketAgeMs:onlineRemoteLive.lastPacketMs
+              ? Math.round(performance.now()-onlineRemoteLive.lastPacketMs)
+              : null,
+            remoteSequence:onlineRemoteLive.lastSequence
+          };
+        }catch(_){
+          return null;
+        }
+      })(),
       generatorValidated:currentHole?.generatorValidated ?? null,
       generatorAttempt:currentHole?.generatorAttempt ?? null,
       generatorRuleVersion:currentHole?.generatorRuleVersion ?? null,
@@ -8574,10 +8595,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     faceDeg:0,
     targetPosition:new THREE.Vector3(),
     targetVelocity:new THREE.Vector3(),
-    lastPacketMs:0
+    predictedPosition:new THREE.Vector3(),
+    lastPacketMs:0,
+    lastSequence:-1,
+    transport:'none'
   };
   let onlineLastLiveEmitMs=0;
+  let onlineLastSocketLiveEmitMs=0;
+  let onlineLiveSequence=0;
   let onlineLiveTimer=null;
+  const onlinePeers=new Map();
 
   function onlineInRoom(){
     return !!onlineSession.code;
@@ -8611,22 +8638,156 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineRemoteLive.swingDeg=0;
     onlineRemoteLive.faceDeg=0;
     onlineRemoteLive.lastPacketMs=0;
+    onlineRemoteLive.lastSequence=-1;
+    onlineRemoteLive.transport='none';
+  }
+
+  function onlineDirectPeerCount(){
+    let count=0;
+    onlinePeers.forEach(peer=>{
+      if(peer.channel?.readyState==='open') count++;
+    });
+    return count;
+  }
+
+  function onlineClosePeer(index){
+    const peer=onlinePeers.get(index);
+    if(!peer) return;
+    try{peer.channel?.close();}catch(_){}
+    try{peer.pc?.close();}catch(_){}
+    onlinePeers.delete(index);
+  }
+
+  function onlineCloseAllPeers(){
+    [...onlinePeers.keys()].forEach(onlineClosePeer);
+  }
+
+  function onlineAttachPeerChannel(index,channel){
+    const peer=onlinePeers.get(index);
+    if(!peer) return;
+    peer.channel=channel;
+    channel.binaryType='arraybuffer';
+    channel.onopen=()=>{
+      recordDebugEvent('online-direct-link-open',{peer:index});
+      onlineSyncTurnUI();
+    };
+    channel.onclose=()=>{
+      recordDebugEvent('online-direct-link-closed',{peer:index});
+      onlineSyncTurnUI();
+    };
+    channel.onmessage=message=>{
+      try{
+        const event=JSON.parse(String(message.data||''));
+        event.transport='wifi-direct';
+        onlineApplyLiveShot(event);
+      }catch(_){}
+    };
+  }
+
+  function onlineSignalPeer(targetIndex,signal){
+    if(!onlineSession.socket?.connected) return;
+    onlineSession.socket.emit('rtc:signal',{targetIndex,signal});
+  }
+
+  function onlineCreatePeer(index,initiator=false){
+    if(index===onlineSession.playerIndex || typeof RTCPeerConnection!=='function') return null;
+    const existing=onlinePeers.get(index);
+    if(existing) return existing;
+
+    const pc=new RTCPeerConnection({iceServers:[]});
+    const peer={pc,channel:null,pendingCandidates:[]};
+    onlinePeers.set(index,peer);
+
+    pc.onicecandidate=event=>{
+      if(event.candidate){
+        onlineSignalPeer(index,{candidate:event.candidate.toJSON?.()||event.candidate});
+      }
+    };
+    pc.ondatachannel=event=>onlineAttachPeerChannel(index,event.channel);
+    pc.onconnectionstatechange=()=>{
+      if(['failed','closed'].includes(pc.connectionState)){
+        onlineClosePeer(index);
+        setTimeout(onlineEnsurePeers,600);
+      }
+    };
+
+    if(initiator){
+      onlineAttachPeerChannel(index,pc.createDataChannel('gyro-live',{
+        ordered:false,
+        maxRetransmits:0
+      }));
+      (async()=>{
+        try{
+          await pc.setLocalDescription(await pc.createOffer());
+          onlineSignalPeer(index,{description:pc.localDescription.toJSON?.()||pc.localDescription});
+        }catch(error){
+          recordDebugEvent('online-direct-offer-error',{peer:index,message:String(error?.message||error)});
+        }
+      })();
+    }
+    return peer;
+  }
+
+  async function onlineHandleRtcSignal(message){
+    if(!onlineInRoom() || !message) return;
+    const fromIndex=Number(message.fromIndex);
+    if(!Number.isInteger(fromIndex) || fromIndex===onlineSession.playerIndex) return;
+    const peer=onlineCreatePeer(fromIndex,false);
+    if(!peer) return;
+    const signal=message.signal||{};
+    try{
+      if(signal.description){
+        await peer.pc.setRemoteDescription(signal.description);
+        if(signal.description.type==='offer'){
+          await peer.pc.setLocalDescription(await peer.pc.createAnswer());
+          onlineSignalPeer(fromIndex,{description:peer.pc.localDescription.toJSON?.()||peer.pc.localDescription});
+        }
+        while(peer.pendingCandidates.length){
+          await peer.pc.addIceCandidate(peer.pendingCandidates.shift());
+        }
+      }else if(signal.candidate){
+        if(peer.pc.remoteDescription){
+          await peer.pc.addIceCandidate(signal.candidate);
+        }else{
+          peer.pendingCandidates.push(signal.candidate);
+        }
+      }
+    }catch(error){
+      recordDebugEvent('online-direct-signal-error',{peer:fromIndex,message:String(error?.message||error)});
+    }
+  }
+
+  function onlineEnsurePeers(){
+    if(!onlineInRoom() || onlineSession.playerIndex<0){
+      onlineCloseAllPeers();
+      return;
+    }
+    const wanted=new Set();
+    onlineSession.players.forEach(player=>{
+      if(!player.connected || player.index===onlineSession.playerIndex) return;
+      wanted.add(player.index);
+      if(!onlinePeers.has(player.index)){
+        onlineCreatePeer(player.index,onlineSession.playerIndex<player.index);
+      }
+    });
+    [...onlinePeers.keys()].forEach(index=>{
+      if(!wanted.has(index)) onlineClosePeer(index);
+    });
   }
 
   function onlineBroadcastLiveShot(now=performance.now(),force=false){
-    if(!onlineCanControlTurn() || !onlineSession.socket?.connected) return;
-    if(!force && now-onlineLastLiveEmitMs<75) return;
+    if(!onlineGameActive() || !onlineCanControlTurn()) return;
+    if(!force && now-onlineLastLiveEmitMs<32) return;
 
     const ballMoving=ballState==='flight' || ballState==='roll' || ballState==='cup';
     const swinging=swingPerformanceActive() || contactPending || mouseSwingActive;
     if(!force && !ballMoving && !swinging && now-onlineLastLiveEmitMs<450) return;
 
     onlineLastLiveEmitMs=now;
-    // At this low fixed cadence a regular Socket.IO event is preferable to a
-    // volatile event. Render/proxy backpressure was dropping nearly every
-    // visual packet, making spectators see only a few poses per second.
-    onlineSession.socket.emit('shot:live',{
+    const payload={
+      playerIndex:onlineSession.playerIndex,
       holeIndex:currentHoleIndex,
+      sequence:++onlineLiveSequence,
       kind:ballMoving?'ball':(swinging?'swing':'address'),
       ballState,
       swingPhase,
@@ -8634,7 +8795,27 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       faceDeg:visualFaceDeg,
       position:{x:ball.position.x,y:ball.position.y,z:ball.position.z},
       velocity:{x:ballVel.x,y:ballVel.y,z:ballVel.z}
+    };
+
+    const encoded=JSON.stringify(payload);
+    let directSent=false;
+    onlinePeers.forEach(peer=>{
+      if(peer.channel?.readyState!=='open') return;
+      try{
+        peer.channel.send(encoded);
+        directSent=true;
+      }catch(_){}
     });
+
+    // Keep a slower reliable Render stream as a fallback for players who are
+    // not on the same LAN or whose browser blocks a direct data channel.
+    if(
+      onlineSession.socket?.connected &&
+      (force || !directSent || now-onlineLastSocketLiveEmitMs>=110)
+    ){
+      onlineLastSocketLiveEmitMs=now;
+      onlineSession.socket.emit('shot:live',payload);
+    }
   }
 
   function onlineApplyLiveShot(event){
@@ -8642,6 +8823,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(Number(event.playerIndex)!==onlineSession.activeIndex) return;
     if(Number(event.playerIndex)===onlineSession.playerIndex) return;
     if(Number(event.holeIndex)!==currentHoleIndex) return;
+    const sequence=Number(event.sequence);
+    if(Number.isFinite(sequence) && sequence<=onlineRemoteLive.lastSequence) return;
+    if(Number.isFinite(sequence)) onlineRemoteLive.lastSequence=sequence;
 
     onlineRemoteLive.active=true;
     onlineRemoteLive.kind=event.kind||'address';
@@ -8660,6 +8844,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       Number(event.velocity?.z)||0
     );
     onlineRemoteLive.lastPacketMs=performance.now();
+    onlineRemoteLive.transport=event.transport||'render-relay';
 
     const active=onlineSession.players[onlineSession.activeIndex];
     if(event.kind==='ball'){
@@ -8683,8 +8868,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   function onlineUpdateRemoteLive(dt){
     if(!onlineRemoteLive.active || onlineCanControlTurn()) return;
     if(onlineRemoteLive.kind!=='ball') return;
-    const alpha=1-Math.exp(-dt*16);
-    ball.position.lerp(onlineRemoteLive.targetPosition,alpha);
+    const age=clamp((performance.now()-onlineRemoteLive.lastPacketMs)/1000,0,.14);
+    const alpha=1-Math.exp(-dt*24);
+    onlineRemoteLive.predictedPosition
+      .copy(onlineRemoteLive.targetPosition)
+      .addScaledVector(onlineRemoteLive.targetVelocity,age);
+    if(ball.position.distanceTo(onlineRemoteLive.predictedPosition)>28){
+      ball.position.copy(onlineRemoteLive.predictedPosition);
+    }else{
+      ball.position.lerp(onlineRemoteLive.predictedPosition,alpha);
+    }
     ballVel.lerp(onlineRemoteLive.targetVelocity,alpha);
     ballPos.copy(ball.position);
     updateLiveYardCounter();
@@ -8696,7 +8889,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // serializes a tiny visual snapshot; physics and contact remain local.
     onlineLiveTimer=setInterval(
       ()=>onlineBroadcastLiveShot(performance.now()),
-      75
+      32
     );
   }
 
@@ -8742,7 +8935,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     roster.innerHTML=onlineSession.players.map(player=>
       `<span class="onlinePlayer${player.connected?' connected':''}${player.index===onlineSession.playerIndex?' me':''}">`+
-      `${player.index===onlineSession.hostIndex?'★ ':''}${escapeUiText(player.name)}${player.index===onlineSession.playerIndex?' · You':''}`+
+      `${player.index===onlineSession.hostIndex?'★ ':''}${escapeUiText(player.name)}${player.index===onlineSession.playerIndex?' · You':''}${player.controllerReady?' · 📱':''}`+
       `</span>`
     ).join('');
 
@@ -8772,6 +8965,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         ? `Room ${onlineSession.code} created. Share the code; you can start when another player joins.`
         : `Joined room ${onlineSession.code}. The host will start the shared course.`
     );
+
+    // A phone may already be connected before the browser creates/joins the
+    // room. Claim it immediately so another computer cannot silently poll the
+    // same phyphox address when its turn begins.
+    if(connected){
+      onlineClaimController(normalizeControllerUrl(activeControllerBase()))
+        .then(claim=>{
+          if(claim?.ok) return;
+          suspendControllerForOnlineSpectator();
+          onlineSetStatus(claim?.error||'That phone is already assigned to another player.',true);
+        });
+    }
   }
 
   function onlineApplyRoomState(room){
@@ -8813,6 +9018,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       if(mine && $('onlinePlayerName')) $('onlinePlayerName').value=mine.name;
     }
     onlineRenderLobby();
+    onlineEnsurePeers();
     if(gameStarted) onlineSyncTurnUI();
   }
 
@@ -8841,9 +9047,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineSession.socket.emit('room:join',{name,code},onlineAdoptRoom);
   }
 
-  function onlineLeaveRoom(){
+  function onlineLeaveRoom(notifyServer=true,message='Offline play restored. Create or join a room whenever you want.'){
     const restorePhone=onlineInRoom();
-    onlineSession.socket?.emit('room:leave');
+    if(notifyServer) onlineSession.socket?.emit('room:leave');
+    onlineCloseAllPeers();
     onlineSession.code='';
     onlineSession.token='';
     onlineSession.playerIndex=-1;
@@ -8858,7 +9065,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     currentPlayerIndex=0;
     onlineSaveSession();
     onlineRenderLobby();
-    onlineSetStatus('Offline play restored. Create or join a room whenever you want.');
+    onlineSetStatus(message,!notifyServer);
     const toast=$('onlineTurnToast');
     toast?.classList.remove('show','yours');
 
@@ -8868,6 +9075,35 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(restorePhone){
       switchControllerForPlayer(0,true);
     }
+  }
+
+  function onlineHandleRoomClosed(event={}){
+    if(!onlineInRoom()) return;
+    const reason=String(event.reason||'A player disconnected. The online room was closed.');
+    const wasPlaying=gameStarted;
+    onlineLeaveRoom(false,reason);
+    if(wasPlaying){
+      exitToMainMenu();
+      onlineSetStatus(reason,true);
+      $('status').textContent=reason;
+      $('status').className='status bad';
+    }
+  }
+
+  function onlineClaimController(controllerKey){
+    return new Promise(resolve=>{
+      if(!onlineInRoom() || !onlineSession.socket?.connected){
+        resolve({ok:!onlineInRoom(),error:'Online room connection was lost.'});
+        return;
+      }
+      const timeout=setTimeout(()=>{
+        resolve({ok:false,error:'The online server is outdated or did not answer the controller check. Upload the new server.js to GitHub.'});
+      },3500);
+      onlineSession.socket.emit('controller:claim',{controllerKey},result=>{
+        clearTimeout(timeout);
+        resolve(result||{ok:false,error:'Controller ownership check timed out.'});
+      });
+    });
   }
 
   function onlineStartRequested(){
@@ -9083,9 +9319,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     if(toast){
       toast.classList.add('show');
       toast.classList.toggle('yours',yours);
+      const liveLink=onlineDirectPeerCount()>0?' · LIVE WI-FI':' · LIVE RELAY';
       toast.textContent=onlineSession.status==='hole-complete'
         ? 'Online hole complete'
-        : (yours?'YOUR TURN · swing when ready':`WAITING FOR ${String(active?.name||'PLAYER').toUpperCase()}`);
+        : (yours?`YOUR TURN · swing when ready${liveLink}`:`WATCHING ${String(active?.name||'PLAYER').toUpperCase()}${liveLink}`);
     }
     if(!yours){
       cancelAutoArm();
@@ -9140,16 +9377,18 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       }catch(_){}
     });
     socket.on('disconnect',()=>{
-      onlineSetStatus('Online server disconnected. Reconnecting automatically…',true);
-      if(gameStarted){
-        cancelAutoArm();
-        armed=false;
+      if(onlineInRoom()){
+        onlineHandleRoomClosed({reason:'Online connection lost. The room was closed for every player.'});
+      }else{
+        onlineSetStatus('Online server disconnected. Reconnecting automatically…',true);
       }
     });
     socket.on('room:state',onlineApplyRoomState);
     socket.on('game:started',onlineBeginSyncedGame);
     socket.on('turn:state',onlineApplyShotState);
     socket.on('shot:live',onlineApplyLiveShot);
+    socket.on('rtc:signal',onlineHandleRtcSignal);
+    socket.on('room:closed',onlineHandleRoomClosed);
     socket.on('hole:advanced',onlineLoadAdvancedHole);
     socket.on('hole:skipped',onlineApplySkippedHole);
     socket.on('connect_error',()=>onlineSetStatus('Cannot reach the online server yet.',true));
@@ -18277,7 +18516,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     markerBall.receiveShadow=true;
 
     const groundRing=new THREE.Mesh(
-      new THREE.RingGeometry(BALL_VISUAL_RADIUS*1.28,BALL_VISUAL_RADIUS*1.60,32),
+      new THREE.RingGeometry(BALL_VISUAL_RADIUS*1.65,BALL_VISUAL_RADIUS*3.05,32),
       new THREE.MeshBasicMaterial({
         color:0xffffff,
         transparent:true,
@@ -18288,10 +18527,41 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     );
     groundRing.rotation.x=-Math.PI/2;
     groundRing.position.y=-BALL_VISUAL_RADIUS*.88;
-    marker.add(markerBall,groundRing);
+
+    const labelCanvas=document.createElement('canvas');
+    labelCanvas.width=128;
+    labelCanvas.height=64;
+    const labelCtx=labelCanvas.getContext('2d');
+    labelCtx.fillStyle='rgba(5,28,18,.90)';
+    labelCtx.beginPath();
+    labelCtx.roundRect(5,5,118,54,22);
+    labelCtx.fill();
+    labelCtx.fillStyle='#ffffff';
+    labelCtx.font='900 30px system-ui';
+    labelCtx.textAlign='center';
+    labelCtx.textBaseline='middle';
+    labelCtx.fillText(`P${i+1} BALL`,64,32);
+    const labelTexture=new THREE.CanvasTexture(labelCanvas);
+    labelTexture.colorSpace=THREE.SRGBColorSpace;
+    const label=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:labelTexture,
+      transparent:true,
+      depthWrite:false,
+      depthTest:true
+    }));
+    label.position.y=.68;
+    label.scale.set(1.15,.58,1);
+
+    const stem=new THREE.Mesh(
+      new THREE.CylinderGeometry(.012,.012,.45,8),
+      new THREE.MeshBasicMaterial({color:0xffffff})
+    );
+    stem.position.y=.34;
+
+    marker.add(markerBall,groundRing,stem,label);
     marker.visible=false;
     otherPlayerBallGroup.add(marker);
-    otherPlayerBalls.push({marker,markerBall,groundRing});
+    otherPlayerBalls.push({marker,markerBall,groundRing,stem,label});
   }
 
   function updateOtherPlayerBalls(now=performance.now(),force=false){
@@ -18325,6 +18595,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       visual.marker.position.set(x,terrainBallYAt(x,z),z);
       visual.markerBall.material.color.set(player.ballColor||player.color||'#ffffff');
       visual.groundRing.material.color.set(player.shirtColor||player.color||'#ffffff');
+      visual.stem.material.color.set(player.shirtColor||player.color||'#ffffff');
     }
   }
 
@@ -30736,6 +31007,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       if(!attitudeBuffers || !attitudeBuffers.x || !attitudeBuffers.y || !attitudeBuffers.z || !attitudeBuffers.w){
         throw new Error('Open Gyro Golf Motion Controller in phyphox.');
       }
+
+      if(onlineInRoom()){
+        const claim=await onlineClaimController(normalizeControllerUrl(base));
+        if(!claim?.ok){
+          throw new Error(claim?.error||'That phone is already assigned to another online player.');
+        }
+      }
+
       const nextBuffers={...attitudeBuffers,...(motionBuffers||{})};
       playerControllerStates[slot].online=true;
       playerControllerStates[slot].buffers=nextBuffers;

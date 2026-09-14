@@ -26,6 +26,13 @@ app.get("/health", (_req, res) => res.json({ ok: true, rooms: rooms.size }));
 app.use(express.static(path.join(__dirname, "public"), {
   etag: true,
   maxAge: "1h",
+  setHeaders(res, filePath) {
+    // Multiplayer client/server changes must arrive together. Caching an old
+    // index.html made one computer silently run an incompatible live protocol.
+    if (path.extname(filePath).toLowerCase() === ".html") {
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    }
+  },
 }));
 
 function cleanName(value, fallback = "Player") {
@@ -61,6 +68,7 @@ function publicRoom(room) {
       index: player.index,
       name: player.name,
       connected: player.connected,
+      controllerReady: Boolean(player.controllerKey),
       scores: player.scores,
     })),
     turnStates: Array.from(room.turnStates.entries()).map(([playerIndex, state]) => ({ playerIndex, state })),
@@ -82,6 +90,26 @@ function nextConnectedPlayer(room, fromIndex) {
 
 function broadcastRoom(room) {
   io.to(room.code).emit("room:state", publicRoom(room));
+}
+
+function closeRoom(room, reason = "A player disconnected. The room was closed.") {
+  if (!room || !rooms.has(room.code)) return;
+  io.to(room.code).emit("room:closed", { reason });
+  for (const player of room.players) {
+    const client = player.socketId ? io.sockets.sockets.get(player.socketId) : null;
+    if (client) {
+      client.leave(room.code);
+      client.data.roomCode = null;
+      client.data.playerIndex = null;
+    }
+    player.connected = false;
+    player.socketId = null;
+  }
+  rooms.delete(room.code);
+}
+
+function cleanControllerKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9.:/_-]/g, "").slice(0, 180);
 }
 
 function attachPlayer(socket, room, player) {
@@ -128,6 +156,7 @@ function sanitizeLiveShot(value, room, playerIndex) {
   return {
     playerIndex,
     holeIndex: room.holeIndex,
+    sequence: Math.max(0, Math.trunc(finiteNumber(live.sequence))),
     kind,
     ballState,
     swingPhase: String(live.swingPhase || "ADDRESS").slice(0, 16),
@@ -159,6 +188,7 @@ io.on("connection", (socket) => {
         name: cleanName(payload?.name, "Player 1"),
         socketId: socket.id,
         connected: true,
+        controllerKey: "",
         scores: {},
       };
       const room = {
@@ -200,6 +230,7 @@ io.on("connection", (socket) => {
       name: cleanName(payload?.name, `Player ${index + 1}`),
       socketId: socket.id,
       connected: true,
+      controllerKey: "",
       scores: {},
     };
     room.players.push(player);
@@ -239,13 +270,49 @@ io.on("connection", (socket) => {
     const index = socket.data.playerIndex;
     const player = room?.players[index];
     if (!room || !player) return;
-    player.connected = false;
-    player.socketId = null;
-    socket.leave(room.code);
-    socket.data.roomCode = null;
-    socket.data.playerIndex = null;
+    closeRoom(room, `${player.name} left. The online room was closed for everyone.`);
+  });
+
+  socket.on("controller:claim", (payload, callback) => {
+    const room = rooms.get(socket.data.roomCode);
+    const player = room?.players[socket.data.playerIndex];
+    if (!room || !player) {
+      return acknowledge(callback, { ok: false, error: "Join an online room first." });
+    }
+    const controllerKey = cleanControllerKey(payload?.controllerKey);
+    if (!controllerKey) {
+      return acknowledge(callback, { ok: false, error: "Enter this computer's phyphox IP first." });
+    }
+    const duplicate = room.players.find((item) =>
+      item.index !== player.index && item.controllerKey === controllerKey
+    );
+    if (duplicate) {
+      return acknowledge(callback, {
+        ok: false,
+        error: `That phyphox phone is already assigned to ${duplicate.name}. Use a different phone IP on this computer.`,
+      });
+    }
+    player.controllerKey = controllerKey;
     touch(room);
+    acknowledge(callback, { ok: true });
     broadcastRoom(room);
+  });
+
+  // Render is only the signaling path. Once negotiated, browsers on the same
+  // Wi-Fi exchange live swing/ball packets directly over WebRTC.
+  socket.on("rtc:signal", (payload) => {
+    const room = rooms.get(socket.data.roomCode);
+    const fromIndex = socket.data.playerIndex;
+    const targetIndex = Math.trunc(Number(payload?.targetIndex));
+    const target = room?.players[targetIndex];
+    if (!room || !Number.isInteger(fromIndex) || !target?.connected || !target.socketId) return;
+    if (targetIndex === fromIndex) return;
+    const signal = payload?.signal;
+    if (!signal || typeof signal !== "object") return;
+    let encoded = "";
+    try { encoded = JSON.stringify(signal); } catch (_) { return; }
+    if (encoded.length > 120_000) return;
+    io.to(target.socketId).emit("rtc:signal", { fromIndex, signal });
   });
 
   socket.on("game:start", (payload, callback) => {
@@ -382,10 +449,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(socket.data.roomCode);
     const player = room?.players[socket.data.playerIndex];
     if (!room || !player || player.socketId !== socket.id) return;
-    player.connected = false;
-    player.socketId = null;
-    touch(room);
-    broadcastRoom(room);
+    closeRoom(room, `${player.name} disconnected. The online room was closed for everyone.`);
   });
 });
 
