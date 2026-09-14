@@ -31,3 +31,6 @@ working Online Fix 7 room and phyphox controller path remain unchanged.
 CONTROL FIX 1 corrects the high-DPI resize loop and gives phone input priority
 over optional scenery and trajectory calculations. It also makes all three
 party modes visually and physically unmistakable.
+
+CONTROL FIX 2 fixes a Moon Golf theme scope error that could interrupt every
+hole during scene setup and leave only the interface over a blue background.

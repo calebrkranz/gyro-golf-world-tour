@@ -1844,7 +1844,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Party Pack 1 · Control Fix 1</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Party Pack 1 · Control Fix 2</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -2589,7 +2589,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-party1-controlfix1-online7';
+  const DEBUG_VERSION='v107-party1-controlfix2-online7';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -22090,7 +22090,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   function rebuildDistantBackdrop(){
     clearDistantBackdrop();
 
-    const theme=currentHole.theme||HOLE_THEMES[0];
+    // Match the distant silhouettes to the active lunar palette as well.
+    const moonMode=currentGameModeId==='moon';
+    const theme=moonMode
+      ? MOON_MODE_THEME
+      : (currentHole.theme||HOLE_THEMES[0]);
     const sp=currentHole.scenery||sceneryProfile('meadow');
 
     const farDark=
@@ -30052,7 +30056,13 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     WIND_MPH=currentHole.wind;
     WIND_DIR_DEG=Number.isFinite(currentHole.windDirDeg)?currentHole.windDirDeg:180;
     applyGameModeHoleRules();
-    const theme=currentHole.theme||HOLE_THEMES[0];
+    // Keep this flag in the complete layout scope. The terrain and distant
+    // backdrop builders have their own block-scoped flags and cannot provide
+    // it to the sky, lighting, cup, or scene setup below.
+    const moonMode=currentGameModeId==='moon';
+    const theme=moonMode
+      ? MOON_MODE_THEME
+      : (currentHole.theme||HOLE_THEMES[0]);
     const originalVisualRandom=Math.random;
     Math.random=seededCourseRandom(`${currentHole.visualSeed||hashCourseSeed(`${currentCourseSeed}|${currentHoleIndex}|visual`)}`);
 
@@ -33889,7 +33899,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
 
   setClubFreedom($('clubFreedom').value);
-  applyHoleLayout();
+  // loadHole(0) below owns the one complete startup layout pass. Building here
+  // as well duplicated all terrain/scenery work before the mode was finalized
+  // and allowed an early layout error to halt the rest of initialization.
   selectStartGameMode('stroke');
   renderStartNames();
   renderStatisticsTab();
