@@ -276,9 +276,10 @@ io.on("connection", (socket) => {
     io.to(room.code).emit("game:started", publicRoom(room));
   });
 
-  // Live packets are visual-only and deliberately lossy. The authoritative
-  // score/turn still comes from turn:submit, while spectators receive enough
-  // club and ball state to watch the active player in real time.
+  // Live packets are visual-only. The authoritative score/turn still comes
+  // from turn:submit. At 13 Hz these packets are small enough to send
+  // reliably; volatile delivery caused hosted spectators to miss nearly all
+  // of a short swing when a proxy briefly applied backpressure.
   socket.on("shot:live", (payload) => {
     const room = rooms.get(socket.data.roomCode);
     const playerIndex = socket.data.playerIndex;
@@ -287,11 +288,11 @@ io.on("connection", (socket) => {
     if (Number(payload?.holeIndex) !== room.holeIndex) return;
 
     const now = Date.now();
-    if (now - socket.data.lastLiveShotAt < 40) return;
+    if (now - socket.data.lastLiveShotAt < 55) return;
     socket.data.lastLiveShotAt = now;
 
     const event = sanitizeLiveShot(payload, room, playerIndex);
-    socket.to(room.code).volatile.emit("shot:live", event);
+    socket.to(room.code).emit("shot:live", event);
   });
 
   socket.on("turn:submit", (payload, callback) => {

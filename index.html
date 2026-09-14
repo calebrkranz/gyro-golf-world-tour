@@ -8577,6 +8577,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     lastPacketMs:0
   };
   let onlineLastLiveEmitMs=0;
+  let onlineLiveTimer=null;
 
   function onlineInRoom(){
     return !!onlineSession.code;
@@ -8612,16 +8613,19 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineRemoteLive.lastPacketMs=0;
   }
 
-  function onlineBroadcastLiveShot(now=performance.now()){
+  function onlineBroadcastLiveShot(now=performance.now(),force=false){
     if(!onlineCanControlTurn() || !onlineSession.socket?.connected) return;
-    if(now-onlineLastLiveEmitMs<50) return;
+    if(!force && now-onlineLastLiveEmitMs<75) return;
 
     const ballMoving=ballState==='flight' || ballState==='roll' || ballState==='cup';
     const swinging=swingPerformanceActive() || contactPending || mouseSwingActive;
-    if(!ballMoving && !swinging && now-onlineLastLiveEmitMs<400) return;
+    if(!force && !ballMoving && !swinging && now-onlineLastLiveEmitMs<450) return;
 
     onlineLastLiveEmitMs=now;
-    onlineSession.socket.volatile.emit('shot:live',{
+    // At this low fixed cadence a regular Socket.IO event is preferable to a
+    // volatile event. Render/proxy backpressure was dropping nearly every
+    // visual packet, making spectators see only a few poses per second.
+    onlineSession.socket.emit('shot:live',{
       holeIndex:currentHoleIndex,
       kind:ballMoving?'ball':(swinging?'swing':'address'),
       ballState,
@@ -8684,6 +8688,16 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     ballVel.lerp(onlineRemoteLive.targetVelocity,alpha);
     ballPos.copy(ball.position);
     updateLiveYardCounter();
+  }
+
+  function ensureOnlineLiveTimer(){
+    if(onlineLiveTimer) return;
+    // Keep networking out of the swing-critical render path. This timer only
+    // serializes a tiny visual snapshot; physics and contact remain local.
+    onlineLiveTimer=setInterval(
+      ()=>onlineBroadcastLiveShot(performance.now()),
+      75
+    );
   }
 
   function onlineSaveSession(){
@@ -8828,6 +8842,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function onlineLeaveRoom(){
+    const restorePhone=onlineInRoom();
     onlineSession.socket?.emit('room:leave');
     onlineSession.code='';
     onlineSession.token='';
@@ -8840,11 +8855,19 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineSession.round=null;
     onlineSession.submitting=false;
     onlineResetRemoteLive();
+    currentPlayerIndex=0;
     onlineSaveSession();
     onlineRenderLobby();
     onlineSetStatus('Offline play restored. Create or join a room whenever you want.');
     const toast=$('onlineTurnToast');
     toast?.classList.remove('show','yours');
+
+    // Spectator mode intentionally stops local polling. Restore Player 1's
+    // phone immediately when returning to offline play so a refresh is never
+    // required before starting a single-player round.
+    if(restorePhone){
+      switchControllerForPlayer(0,true);
+    }
   }
 
   function onlineStartRequested(){
@@ -9080,6 +9103,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function initializeOnlineRooms(){
+    ensureOnlineLiveTimer();
     if(typeof window.io!=='function'){
       onlineSetStatus('Online rooms are available after this project is deployed. Offline play still works.');
       return;
@@ -9299,6 +9323,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     );
     ball.position.copy(ballPos);
     shotStart.copy(ballPos);
+    updateOtherPlayerBalls(performance.now(),true);
 
     lastShotText=state.lastShotText||'—';
     lastShape=state.lastShape||'—';
@@ -13421,6 +13446,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       if(next==='DOWNSWING'){
         playSwingWhoosh();
+      }
+
+      if(onlineGameActive() && onlineCanControlTurn()){
+        onlineBroadcastLiveShot(performance.now(),true);
       }
     }
 
@@ -18226,6 +18255,79 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   scene.add(ball);
 
+  // Keep each inactive player's last resting ball visible. These are visual
+  // markers only; the active ball remains the sole physics object.
+  const otherPlayerBallGroup=new THREE.Group();
+  otherPlayerBallGroup.name='other-player-balls';
+  scene.add(otherPlayerBallGroup);
+  const otherPlayerBalls=[];
+  let lastOtherPlayerBallUpdateMs=0;
+
+  for(let i=0;i<4;i++){
+    const marker=new THREE.Group();
+    const markerBall=new THREE.Mesh(
+      new THREE.SphereGeometry(BALL_VISUAL_RADIUS,24,16),
+      new THREE.MeshStandardMaterial({
+        color:0xffffff,
+        roughness:.24,
+        metalness:0
+      })
+    );
+    markerBall.castShadow=true;
+    markerBall.receiveShadow=true;
+
+    const groundRing=new THREE.Mesh(
+      new THREE.RingGeometry(BALL_VISUAL_RADIUS*1.28,BALL_VISUAL_RADIUS*1.60,32),
+      new THREE.MeshBasicMaterial({
+        color:0xffffff,
+        transparent:true,
+        opacity:.72,
+        depthWrite:false,
+        side:THREE.DoubleSide
+      })
+    );
+    groundRing.rotation.x=-Math.PI/2;
+    groundRing.position.y=-BALL_VISUAL_RADIUS*.88;
+    marker.add(markerBall,groundRing);
+    marker.visible=false;
+    otherPlayerBallGroup.add(marker);
+    otherPlayerBalls.push({marker,markerBall,groundRing});
+  }
+
+  function updateOtherPlayerBalls(now=performance.now(),force=false){
+    if(!force && now-lastOtherPlayerBallUpdateMs<90) return;
+    lastOtherPlayerBallUpdateMs=now;
+
+    for(let i=0;i<otherPlayerBalls.length;i++){
+      const visual=otherPlayerBalls[i];
+      const player=players[i];
+      const state=player?.holeStates?.[currentHoleIndex];
+      const show=!!(
+        gameStarted &&
+        playerCount>1 &&
+        i!==currentPlayerIndex &&
+        state &&
+        !state.finished &&
+        Number.isFinite(state.x) &&
+        Number.isFinite(state.z)
+      );
+      visual.marker.visible=show;
+      if(!show) continue;
+
+      let x=state.x;
+      let z=state.z;
+      // On the tee several balls can occupy the exact same saved location.
+      // A tiny display-only fan keeps every player's marker readable.
+      if(Math.hypot(x-ballPos.x,z-ballPos.z)<.22){
+        const fan=(i-currentPlayerIndex)*BALL_VISUAL_RADIUS*.72;
+        x+=fan;
+      }
+      visual.marker.position.set(x,terrainBallYAt(x,z),z);
+      visual.markerBall.material.color.set(player.ballColor||player.color||'#ffffff');
+      visual.groundRing.material.color.set(player.shirtColor||player.color||'#ffffff');
+    }
+  }
+
   // Hybrid collision visualization: faint sphere shows the actual physical assist zone.
   const impactZone=new THREE.Mesh(
     new THREE.SphereGeometry(PHYSICAL_IMPACT_RADIUS,20,14),
@@ -20155,9 +20257,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // network outage indefinitely.
     const predictionHorizonMs=
       clamp(
-        controllerVisualPacketIntervalMs*1.18,
-        55,
-        320
+        controllerVisualPacketIntervalMs*2.2,
+        110,
+        560
       );
 
     const ageSeconds=
@@ -20343,11 +20445,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       // response added noticeable latency to 700–900°/s downswings.
       const swingResponse=
         visualSpeed>420
-          ? 64
+          ? 24
           : (
               visualSpeed>150
-                ? 48
-                : 30
+                ? 18
+                : 12
             );
 
       const swingAlpha=
@@ -28424,6 +28526,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     followTimer=0;
     strokes++;
 
+    // Do not wait for the fixed live timer to reveal that the ball launched.
+    onlineBroadcastLiveShot(performance.now(),true);
+
     const steer=impactSteeringDeg;
 
     const shape=
@@ -31367,7 +31472,14 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
   }
   async function pollSensors(){
-    if(!connected || pollBusy) return;
+    if(!connected) return;
+    if(pollBusy){
+      // A controller/mode handoff can finish while the previous phone request
+      // is still unwinding. Keep the new generation alive instead of losing
+      // its only scheduled poll and requiring a full page refresh.
+      scheduleSensorPoll(12);
+      return;
+    }
 
     pollBusy=true;
     const pollGeneration=controllerGeneration;
@@ -32598,6 +32710,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       // Spectators never simulate another player's shot locally. They render
       // the active browser's lossy 20 Hz state with frame-rate interpolation.
       onlineUpdateRemoteLive(dt);
+      updateOtherPlayerBalls(now);
 
       updateBallStateWatchdog(dt);
       updateCupCapture(dt);
@@ -32608,7 +32721,6 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       updateMouseSwingAnimation(now);
       updateVisualClub(dt);
       updateClubWatchdog(dt);
-      onlineBroadcastLiveShot(now);
 
       // UI failsafe: the dimming scrim may never remain active without the
       // settings drawer itself being open.
