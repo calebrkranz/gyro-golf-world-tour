@@ -2,12 +2,18 @@
 
 Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
 
-## Party Pack 1
+## Party Pack 2
 
 - Ride a **horse**, **dragon**, or **giant turtle** without changing swing detection, club collision, or ball physics.
 - Give every player's mount its own color in **Customize Character**.
 - Play **Moon Golf**, **Mega Cup Mayhem**, and **Bounce Blitz** as local party modes.
 - Standard Stroke Play and the online room system retain their established physics and controller behavior.
+- **Target Golf** now removes cup scoring and uses three separate Gold, Silver, and Blue bullseyes.
+- **Coin Collect** creates four treasure holes with large airborne coins and per-player collection totals.
+- **Wild Conditions** now uses major rule changes including hurricane crosswinds, ice fairways, high altitude, heavy gravity, glass greens, and sticky turf.
+- **Party Wheel** works in online multiplayer and deterministically chooses a new map/rule for every hole.
+- Moon Golf replaces its trees with a lightweight instanced field of floating lunar rocks.
+- Three validated random-direction architectures bring the total to 43.
 
 ### Control Fix 1
 
@@ -19,6 +25,12 @@ Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion control
 
 - Fixes the startup exception that left only the interface and blue background visible.
 - Keeps the Moon Golf flag inside the complete hole-layout scope so regular, range, and lunar holes all finish scene initialization.
+
+### Phyphox Priority
+
+- Suspends scenery traversal, minimap redraw, mount idle, optional details, water sparkle, and shadow refresh whenever a connected phone is waiting or swinging.
+- Keeps controller polling at its established 25 ms target and limits trajectory simulation to 120 ms while the phone has priority.
+- Coin and Party systems are generated only at hole load; no wheel or coin mesh allocation runs inside the swing loop.
 
 ## Deploy on Render
 
@@ -51,8 +63,8 @@ The game runs locally for smooth swing input while only turn results travel thro
 
 ## Online play notes
 
-- Online rooms support **Stroke Play** and **Island Hopper**.
-- Party Pack modes are local-only so experimental physics never enter an online room.
+- Online rooms support **Stroke Play**, **Island Hopper**, and **Party Wheel**.
+- Moon Golf, Mega Cup, Bounce Blitz, Wild Conditions, Target Golf, and Coin Collect remain available for local pass-and-play.
 - Each computer owns exactly one online player and connects only that player's phyphox phone. A persistent browser ID and room token prevent one computer from claiming another player's controller.
 - In local pass-and-play, every player also has an isolated phone slot. Leaving a slot blank makes that player mouse-only; Player 1's phone is never shared automatically.
 - The host starts the round and advances after everyone finishes each hole.

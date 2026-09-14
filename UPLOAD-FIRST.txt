@@ -4,7 +4,7 @@ GYRO GOLF WORLD TOUR — NEXT STEPS
 2. Open your gyro-golf-world-tour repository on GitHub.
 3. Click Add file, then Upload files.
 4. Drag in ALL unzipped items: public, server.js, package.json,
-   package-lock.json, render.yaml, README.md, and .gitignore.
+   package-lock.json, render.yaml, README.md, scripts, and .gitignore.
 5. Commit the files directly to main.
 6. In Render click New +, choose Blueprint, connect this repository,
    and click Deploy Blueprint.
@@ -24,9 +24,10 @@ routes Start Game through the online room and the server locks each player to a
 unique browser and phone. Blank local phone rows use mouse controls; they never
 share Player 1's phone.
 
-PARTY PACK 1 adds cosmetic horse, dragon, and giant-turtle mounts plus Moon
-Golf, Mega Cup Mayhem, and Bounce Blitz. The party modes are local-only; the
-working Online Fix 7 room and phyphox controller path remain unchanged.
+PARTY PACK 2 adds Coin Collect, overhauled Target Golf and Wild Conditions,
+43 validated hole architectures, lunar floating rocks, and an online Party
+Wheel. Party Wheel is available in multiplayer; its seeded spin and map are
+the same on every connected computer.
 
 CONTROL FIX 1 corrects the high-DPI resize loop and gives phone input priority
 over optional scenery and trajectory calculations. It also makes all three
@@ -34,3 +35,7 @@ party modes visually and physically unmistakable.
 
 CONTROL FIX 2 fixes a Moon Golf theme scope error that could interrupt every
 hole during scene setup and leave only the interface over a blue background.
+
+PHYPHOX PRIORITY suspends minimap, scenery traversal, mounts, optional detail,
+water sparkle, and shadow refresh while a connected phone is waiting or
+swinging. Controller polling remains at the established 25 ms target.

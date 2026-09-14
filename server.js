@@ -349,7 +349,8 @@ io.on("connection", (socket) => {
     if (room.players.length < 2 || room.players.some((player) => !player.connected)) {
       return acknowledge(callback, { ok: false, error: "Two connected players are required." });
     }
-    const mode = payload?.mode === "island" ? "island" : "stroke";
+    const requestedMode = String(payload?.mode || "stroke");
+    const mode = ["stroke", "island", "party"].includes(requestedMode) ? requestedMode : "stroke";
     room.round = {
       mode,
       seed: String(payload?.seed || "ONLINE").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24) || "ONLINE",

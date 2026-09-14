@@ -1,12 +1,13 @@
 {
   "name": "gyro-golf-world-tour",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "description": "Gyro Golf World Tour with room-code online multiplayer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js",
+    "build:standalone": "node scripts/build-standalone.js"
   },
   "engines": {
     "node": ">=20"
