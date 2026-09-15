@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phyphox version="1.20">
+  <title>Gyro Golf Motion Controller v2</title>
+  <category>Golf</category>
+  <description>High-rate buffered attitude and linear acceleration for Gyro Golf World Tour. Keep phyphox open with Remote Access enabled while playing.</description>
+
+  <data-containers>
+    <container size="1000">golf_qx</container>
+    <container size="1000">golf_qy</container>
+    <container size="1000">golf_qz</container>
+    <container size="1000">golf_qw</container>
+    <container size="1000">golf_qt</container>
+    <container size="1000">golf_ax</container>
+    <container size="1000">golf_ay</container>
+    <container size="1000">golf_az</container>
+    <container size="1000">golf_a</container>
+    <container size="1000">golf_at</container>
+  </data-containers>
+
+  <input>
+    <sensor type="attitude" rate="100" rateStrategy="request" average="false" stride="1">
+      <output component="x">golf_qx</output>
+      <output component="y">golf_qy</output>
+      <output component="z">golf_qz</output>
+      <output component="abs">golf_qw</output>
+      <output component="t">golf_qt</output>
+    </sensor>
+    <sensor type="linear_acceleration" rate="100" rateStrategy="request" average="false" stride="1">
+      <output component="x">golf_ax</output>
+      <output component="y">golf_ay</output>
+      <output component="z">golf_az</output>
+      <output component="abs">golf_a</output>
+      <output component="t">golf_at</output>
+    </sensor>
+  </input>
+
+  <views>
+    <view label="Golf Controller">
+      <value label="Motion" size="2" precision="2" unit="m/s²"><input>golf_a</input></value>
+      <value label="Acceleration X" size="1" precision="2" unit="m/s²"><input>golf_ax</input></value>
+      <value label="Acceleration Y" size="1" precision="2" unit="m/s²"><input>golf_ay</input></value>
+      <value label="Acceleration Z" size="1" precision="2" unit="m/s²"><input>golf_az</input></value>
+      <info label="Keep this experiment running with Remote Access enabled and the phone screen awake. Gyro Golf retrieves buffered samples, so brief Wi-Fi delays will not lose the middle of a swing."/>
+    </view>
+  </views>
+
+  <export>
+    <set name="Golf Attitude">
+      <data name="Time (s)">golf_qt</data>
+      <data name="Quaternion x">golf_qx</data>
+      <data name="Quaternion y">golf_qy</data>
+      <data name="Quaternion z">golf_qz</data>
+      <data name="Quaternion w">golf_qw</data>
+    </set>
+    <set name="Golf Motion">
+      <data name="Time (s)">golf_at</data>
+      <data name="Linear acceleration x (m/s²)">golf_ax</data>
+      <data name="Linear acceleration y (m/s²)">golf_ay</data>
+      <data name="Linear acceleration z (m/s²)">golf_az</data>
+      <data name="Linear acceleration magnitude (m/s²)">golf_a</data>
+    </set>
+  </export>
+</phyphox>

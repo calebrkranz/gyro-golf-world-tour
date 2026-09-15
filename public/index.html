@@ -1845,7 +1845,7 @@ label.message{display:block;margin-top:9px}
 .phoneBridgeNotice{display:none;margin:10px 0 0;padding:11px 12px;border:1px solid #e2bd5d;border-radius:12px;background:linear-gradient(135deg,#fff9df,#f8e7ab);color:#503d13;font-size:10px;line-height:1.4}
 .phoneBridgeNotice.show{display:block}
 .phoneBridgeNotice b{display:block;margin-bottom:3px;font-size:11px}
-.phoneBridgeNotice button{margin-top:8px;width:100%;border:1px solid #c79427;border-radius:9px;padding:9px 10px;background:#f2c44f;color:#332300;font-weight:1000;cursor:pointer}
+.phoneBridgeNotice button,.phoneBridgeNotice a{display:block;box-sizing:border-box;margin-top:8px;width:100%;border:1px solid #c79427;border-radius:9px;padding:9px 10px;background:#f2c44f;color:#332300;font-weight:1000;text-align:center;text-decoration:none;cursor:pointer}
 @media(max-width:760px){.onlineLobbyGrid{grid-template-columns:1fr 1fr}.onlineLobbyGrid input:first-child{grid-column:1/-1}}
 </style>
 
@@ -1863,7 +1863,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Controller Fix 11 · Range Rush</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Buffered Controller Fix 12</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -2475,6 +2475,7 @@ label.message{display:block;margin-top:9px}
       <div id="phoneBridgeNotice" class="phoneBridgeNotice">
         <b>Allow local-network access for phyphox</b>
         Chrome should ask permission when you connect. Choose <b>Allow</b>. If the browser still blocks the HTTP phone, use this local copy on each player's computer; it remembers the online server automatically.
+        <a href="gyro-golf-motion-controller.phyphox" download>Download Buffered phyphox Controller v2</a>
         <button id="downloadLocalController" type="button">Download Phone-Compatible Game</button>
       </div>
       <div class="controllerSetup">
@@ -2628,7 +2629,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-smooth-phyphox-coin-range-online-hole-fix11';
+  const DEBUG_VERSION='v107-buffered-phyphox-transport-fix12';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -13154,6 +13155,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   let sensorPollingMode='auto';
   let sensorThresholdMisses=0;
   let sensorLatestFallbacks=0;
+  let sensorBatchProbeStartedMs=0;
   let lastValidSensorPacketMs=0;
   let lastSensorSourceTime=null;
   let sensorRecoveryBusy=false;
@@ -13281,6 +13283,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     lastSensorSourceTime=null;
     sensorPollingMode='auto';
     sensorThresholdMisses=0;
+    sensorBatchProbeStartedMs=0;
     lastValidSensorPacketMs=performance.now();
     attitudeRelativeTarget.identity();
     attitudeRelativeSmooth.identity();
@@ -13340,6 +13343,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   // Restore the cadence used by the earlier reliable controller. Polling the
   // phone faster produced extra duplicate REST packets and connection churn.
   const SENSOR_POLL_TARGET_MS=25;
+  const SENSOR_GET_TIMEOUT_MS=650;
+  const SENSOR_BATCH_PROBE_MISSES=6;
+  const SENSOR_BATCH_PROBE_WINDOW_MS=300;
+  const SENSOR_MAX_BATCH_FRAMES=64;
 
   function stopSensorPolling(){
     if(pollTimer){
@@ -31917,8 +31924,17 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   async function getJSON(path,base=activeControllerBase()){
     let r;
+    const isSensorRead=String(path||'').startsWith('/get?');
+    const abortController=typeof AbortController==='function'
+      ? new AbortController()
+      : null;
+    const requestTimeoutMs=isSensorRead?SENSOR_GET_TIMEOUT_MS:6000;
+    const requestTimeout=abortController
+      ? setTimeout(()=>abortController.abort(),requestTimeoutMs)
+      : null;
     try{
       const options={cache:'no-store'};
+      if(abortController) options.signal=abortController.signal;
       // Chrome 142+ gates HTTPS -> local-device requests behind its Local
       // Network Access permission. Explicitly declaring the destination makes
       // Chrome show that permission prompt instead of silently degrading the
@@ -31927,15 +31943,20 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         options.targetAddressSpace='local';
       }
       r=await fetch(base+path,options);
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return await r.json();
     }catch(error){
+      if(error?.name==='AbortError'){
+        throw new Error(`Phone response timed out after ${requestTimeoutMs} ms`);
+      }
       if(phoneConnectionNeedsLocalCopy(base)){
         syncPhoneConnectionNotice();
         throw new Error('Local-network permission blocked phyphox. Allow Local network access for this site and retry, or use Download Phone-Compatible Game.');
       }
       throw error;
+    }finally{
+      if(requestTimeout) clearTimeout(requestTimeout);
     }
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    return r.json();
   }
 
   function sensorBufferValues(data,name){
@@ -31974,7 +31995,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // timestamp. Process the newest bounded batch instead of throwing all but
     // one away. This preserves high-rate motion even when Wi-Fi/HTTP only
     // completes 8-12 requests per second.
-    const start=Math.max(0,available-32);
+    const start=Math.max(0,available-SENSOR_MAX_BATCH_FRAMES);
     const timeValues=buffers.t?sensorBufferValues(data,buffers.t):[];
     const latestSource=Number(timeValues[available-1]);
     const frames=[];
@@ -32860,26 +32881,60 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
       let sensorFrames=unpackSensorFrames(received,performance.now());
 
-      // The custom Gyro Golf controller can expose a valid timestamp while
-      // storing only the latest calculated quaternion. On those buffers a
-      // threshold request succeeds over HTTP but returns empty arrays forever.
-      // Detect that response on the first attempt and permanently use the
-      // latest-value endpoint for this connection. This keeps single-player
-      // live instead of tripping the stale-phone watchdog after five seconds.
+      // An empty threshold response usually means the next phone sample has
+      // not arrived yet. Fix 11 incorrectly treated the first normal empty
+      // response as proof that batching was unsupported and permanently fell
+      // back to one-sample polling. That discarded the middle of fast swings.
+      // Give the buffered API a real observation window. Only fall back when
+      // a separate latest-value probe proves the source timestamp advanced
+      // while threshold retrieval still returned nothing.
       if(canTryBatch && !sensorFrames.length){
         sensorThresholdMisses++;
-        const latest=await getJSON('/get?'+buildSensorQuery(true),pollBase);
-        if(pollGeneration!==controllerGeneration) return;
-        sensorFrames=unpackSensorFrames(latest,performance.now());
-        sensorPollingMode='latest';
-        sensorLatestFallbacks++;
-        recordDebugEvent('sensor-latest-fallback',{
-          thresholdMisses:sensorThresholdMisses,
-          receivedFrames:sensorFrames.length
-        });
+        if(!sensorBatchProbeStartedMs){
+          sensorBatchProbeStartedMs=performance.now();
+        }
+
+        const probeWindowElapsed=
+          performance.now()-sensorBatchProbeStartedMs;
+
+        if(
+          sensorThresholdMisses>=SENSOR_BATCH_PROBE_MISSES &&
+          probeWindowElapsed>=SENSOR_BATCH_PROBE_WINDOW_MS
+        ){
+          const priorSourceTime=lastSensorSourceTime;
+          const latest=await getJSON('/get?'+buildSensorQuery(true),pollBase);
+          if(pollGeneration!==controllerGeneration) return;
+          const latestFrames=unpackSensorFrames(latest,performance.now());
+          const latestSource=buffers.t?last(latest,buffers.t):0;
+          const sourceAdvanced=(
+            Number.isFinite(latestSource) &&
+            Number.isFinite(priorSourceTime) &&
+            latestSource>priorSourceTime+1e-10
+          );
+
+          if(sourceAdvanced && latestFrames.length){
+            sensorFrames=latestFrames;
+            sensorPollingMode='latest';
+            sensorLatestFallbacks++;
+            recordDebugEvent('sensor-latest-fallback',{
+              thresholdMisses:sensorThresholdMisses,
+              probeWindowMs:Math.round(probeWindowElapsed),
+              receivedFrames:sensorFrames.length,
+              reason:'timestamp-advanced-outside-threshold-query'
+            });
+          }else{
+            // The phone simply had no new event. Stay in batch-capable mode
+            // and probe again later instead of destroying the connection.
+            sensorPollingMode='auto';
+          }
+
+          sensorThresholdMisses=0;
+          sensorBatchProbeStartedMs=performance.now();
+        }
       }else if(canTryBatch && sensorFrames.length){
         sensorPollingMode='batch';
         sensorThresholdMisses=0;
+        sensorBatchProbeStartedMs=0;
       }
 
       sensorLastBatchSize=sensorFrames.length;
@@ -33268,7 +33323,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       if(pollGeneration!==controllerGeneration || !connected) return;
       const message=String(e?.message||e);
       const networkError=(
-        /failed to fetch|networkerror|load failed|http\s+\d+/i
+        /failed to fetch|networkerror|load failed|timed out|aborterror|http\s+\d+/i
           .test(message)
       );
       const runtimeError=(
