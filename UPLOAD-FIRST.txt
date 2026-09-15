@@ -1,3 +1,20 @@
+CIRCUITS + DRIVING AUDIO UPDATE
+Upload the entire package, including NEW kart-tracks.js at the root next to server.js.
+Required: public/index.html, server.js, kart-tracks.js.
+Redeploy Render, then refresh every computer.
+Title should show Kart Circuits + Audio.
+Choose the circuit and existing golf theme in the main menu.
+
+KART RALLY 3D + AIM FIX
+If the previous Kart Rally server is already deployed, replace public/index.html and redeploy.
+Otherwise upload this whole package, including server.js. Refresh all players.
+Title: Kart Rally 3D / Aim Fix.
+
+KART RALLY UPDATE
+Upload public/index.html AND server.js together to the existing GitHub repository.
+Render: Manual Deploy > Deploy latest commit. Refresh every player browser.
+Title should say Kart Rally Update / Controller Fix 12.
+
 GYRO GOLF WORLD TOUR — NEXT STEPS
 
 1. Unzip Gyro-Golf-World-Tour-Render.zip.

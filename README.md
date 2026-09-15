@@ -1,4 +1,3 @@
-***I do not own any of the sounds in the game***
 # Gyro Golf World Tour
 
 Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
@@ -11,6 +10,14 @@ Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion control
 - Processes up to 64 recovered samples after a Wi-Fi delay, preserving the measured backswing, downswing, and impact instead of relying on visual prediction.
 - Aborts a stalled live sensor request after 650 ms so one hung browser request cannot freeze the entire controller loop for five seconds.
 - The hosted settings panel provides both the updated controller and the phone-compatible local game. The local game can still use Render for online rooms.
+
+## Final Modes Update
+
+- **Power-Up Tour** works locally and online. Three Par 8 Grand Prix holes use airborne item gates for Turbo, Super Bounce, Shield, Rival Storm, and Sticky Turf effects. Hosted effects are resolved by the room server before the next turn.
+- **Long Haul Championship** works locally and online with a stable Par 6, 7, and 8 rotation built from validated wide routes.
+- **Coin Collect** now uses alternating three-coin gates and temporary left/right airborne steering controls.
+- Narrow displays keep the mouse-shot panel beside the map and caddie rail, while the wind HUD and world streaks are more visible.
+- Controller polling and swing recognition remain on Buffered Controller Fix 12 and were not changed by this modes update.
 
 ## Controller Fix 11
 
@@ -97,8 +104,8 @@ The game runs locally for smooth swing input while only turn results travel thro
 
 ## Online play notes
 
-- Online rooms support **Stroke Play**, **Island Hopper**, and **Party Wheel**.
-- Only those three cards remain visible after a room is created or joined.
+- Online rooms support **Stroke Play**, **Island Hopper**, **Party Wheel**, **Power-Up Tour**, **Long Haul**, and **Kart Rally**.
+- Only those supported cards remain visible after a room is created or joined.
 - Moon Golf, Mega Cup, Bounce Blitz, Wild Conditions, Target Golf, and Coin Collect remain available for local pass-and-play.
 - Each computer owns exactly one online player and connects only that player's phyphox phone. A persistent browser ID and room token prevent one computer from claiming another player's controller.
 - In local pass-and-play, every player also has an isolated phone slot. Leaving a slot blank makes that player mouse-only; Player 1's phone is never shared automatically.
@@ -108,3 +115,41 @@ The game runs locally for smooth swing input while only turn results travel thro
 - Every resting player ball remains visible on the course between turns.
 - Courses are deterministic: every player receives the same seed and generated layout.
 - Rooms are kept in memory. A free Render service can sleep or restart, which clears active rooms; create a new room if that happens.
+
+## Kart Rally update
+
+Upload BOTH `public/index.html` and `server.js` together and redeploy Render. All players must refresh onto this build. The title reads "Kart Rally 3D · Aim Fix".
+
+- Kart Rally is a 3D golf-cart racer with chase cameras with a new large smooth circuit each race, three laps, turbo, shield, lightning, and oil.
+- Offline: click Kart Rally, then Solo + AI or Local split-screen. Two human players share the screen with two AI racers.
+- P1: WASD, Space for item, R rescue. P2: arrow keys, Enter for item, / rescue. Escape pauses offline races.
+- Online: create/join the normal room (2–4 computers); host clicks Kart Rally. Everyone races simultaneously. Each computer uses WASD + Space. Server owns pickups, item effects, ordered checkpoints and finish order. Positions stream at 20 Hz with interpolation.
+- Leaving an online race closes the room using the existing room lifecycle; create a fresh room for another race. Split-screen is local, not combined with online seats.
+- Long Haul now generates Par 6 at 650–745 yards, Par 7 at 780–890 yards, and Par 8 at 930–1,040 yards. Power-Up Tour uses those true Par 8 layouts.
+- Coin steering direction corrected; A/D and on-screen buttons both work.
+- Power-Up Tour has colored moving ball auras, visible shield mesh, persistent effect text and stronger shot modifiers.
+- Alternating light/dark wind streaks improve contrast across course themes.
+
+Validation: syntax checks; 72 generated long routes pass geometry rules; independent local keyboard controls, items/shields/lap completion; two socket clients verify matching tracks, live states, item ownership, checkpoints/finish order and room closure. Physical phyphox hardware and GPU rendering must still be verified on your devices; browser download was unavailable in the build environment.
+
+## 3D and aim correction
+
+Kart Rally now renders with Three.js: perspective chase cameras, separate left/right viewports for local split-screen, 3D carts, curbs, vegetation, glowing items, shield spheres and turbo flames. Racing physics, controls and the online protocol remain the same as the prior Kart Rally update. The kart scene is disposed on exit.
+
+The attached diagnostic report showed disconnected phone face data near -86 degrees. Previously the mouse aiming guides still included that stale data, but mouse launch ignored it. Both guides now exclude phone steering when disconnected or mouse-swinging and reset the smoothed display offset. Calibrated neutral also has zero fixed assisted steering bias. Wind and terrain can still affect a shot after launch.
+
+Validation: JavaScript syntax; geometry finite-value checks; two viewport camera dispatch; independent inputs; repeated scene cleanup/reentry; disconnected-phone steering regression. These tests use a renderer stub and are not a GPU visual test. Physical phone testing remains necessary on the user's hardware.
+
+## Reference circuit and driving audio update
+
+Upload the full package, particularly `public/index.html`, `server.js`, and the NEW root-level `kart-tracks.js`. Redeploy Render and refresh all computers. The title reads "Kart Circuits + Audio". Earlier Kart Rally servers cannot supply these circuits.
+
+Choose a Kart circuit and Kart theme on the main menu before launching. Twenty large stylized outlines are inspired by the supplied chart (Spielberg, Barcelona, Budapest, Monaco, Monza, Nürburg, Silverstone, Spa, Melbourne, Austin, As-Sachir, Greater Noida, Montreal, São Paulo, Yeongam, Singapore, Sepang, Shanghai, Suzuka and Abu Dhabi); these are not surveyed replicas. Random chooses an outline, scale, orientation, elevation phase and theme. Tight layouts expand to keep the 160-unit-wide road from folding at corners. Tracks have rolling elevation and continuous embankments; carts follow the road surface.
+
+All eight existing golf biomes are selectable: Desert, Autumn, Tropical, Alpine, Links, Cherry Blossom, Volcanic and Aurora Night. The live minimap shows the full circuit, finish marker and numbered racer positions.
+
+The supplied car-driving MP3 is embedded. Engine pitch/volume follow speed; it stops during pause, at finish, and on exit. Menu music stops immediately when golf or kart gameplay starts, including online starts, and cannot restart behind a race. The existing sound-effect toggle controls engine audio.
+
+Items: turbo, shield, storm, oil, targeting rocket (slows the nearest rival ahead), star (six seconds of boost and shield), and recovery (clears slowdown and restores speed). Online pickups and effects are server-owned. Local two-player split-screen retains independent controls, item slots and cameras.
+
+Validation: shared client/server geometry byte check; all 20 layouts have finite geometry and checked separation for the widened road; elevation closes at the start line; renderer-stub tests cover minimap, independent controls, audio start/stop, new items and cleanup; two real Socket.IO clients complete matching reference circuits with items, checkpoint/finish state and host room closure. Browser GPU/audio output and physical phyphox were not tested here.

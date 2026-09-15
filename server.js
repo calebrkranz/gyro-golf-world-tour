@@ -35,6 +35,27 @@ app.use(express.static(path.join(__dirname, "public"), {
   },
 }));
 
+// Kart races have their own state channel; golf turns and controller claims are
+// never used for racing. The server owns pickups, effects, checkpoints and rank.
+const KartTracks=require('./kart-tracks.js');
+const kartTrackCache=new WeakMap();
+function kartPoint(config,t,lane=0){
+ let track=kartTrackCache.get(config);if(!track){track=KartTracks.build(config).points;kartTrackCache.set(config,track);}return KartTracks.point(track,t,lane);
+}
+function startKart(room){
+ const themes=['desert','autumn','tropical','alpine','links','cherry','volcanic','aurora'];
+ const config={trackId:room.round.kartTrack==='random'?crypto.randomInt(20):Number(room.round.kartTrack),scale:48+crypto.randomInt(8),rotation:crypto.randomInt(628)/100,phase:crypto.randomInt(628)/100,theme:themes.includes(room.round.biome)?room.round.biome:themes[crypto.randomInt(themes.length)]};
+ room.round.kart=config;
+ room.kart={startAt:Date.now()+4000,boxes:Array(20).fill(0),hazards:[],finishOrder:[],states:room.players.map((p,i)=>({...kartPoint(config,-.008*i,(i%2?1:-1)*22),index:i,t:((-.008*i)%1+1)%1,speed:0,gates:0,lap:0,item:'',boostUntil:0,shieldUntil:0,slowUntil:0,lastAt:Date.now(),finished:false}))};
+ room.round.kartStartAt=room.kart.startAt;
+}
+setInterval(()=>{
+ const now=Date.now();for(const room of rooms.values())if(room.kart&&room.status==='playing'){
+  room.kart.hazards=room.kart.hazards.filter(h=>h.until>now);
+  io.to(room.code).volatile.emit('kart:snapshot',{now,startAt:room.kart.startAt,states:room.kart.states,boxes:room.kart.boxes,hazards:room.kart.hazards,finishOrder:room.kart.finishOrder});
+ }
+},50).unref();
+
 function cleanName(value, fallback = "Player") {
   const name = String(value || "").replace(/[<>\u0000-\u001f]/g, "").trim();
   return (name || fallback).slice(0, 18);
@@ -73,6 +94,7 @@ function publicRoom(room) {
       scores: player.scores,
     })),
     turnStates: Array.from(room.turnStates.entries()).map(([playerIndex, state]) => ({ playerIndex, state })),
+    battleEffects: Array.isArray(room.battleEffects) ? room.battleEffects : [],
   };
 }
 
@@ -173,7 +195,50 @@ function sanitizeTurnState(value) {
     lastShotText: String(state.lastShotText || "—").slice(0, 80),
     lastShape: String(state.lastShape || "—").slice(0, 30),
     selected: String(state.selected || "").slice(0, 4),
+    collectedBattleBoxIds: Array.isArray(state.collectedBattleBoxIds)
+      ? state.collectedBattleBoxIds.map((id) => String(id).slice(0, 24)).slice(0, 36)
+      : [],
+    battlePickup: ["boost", "bounce", "shield", "storm", "mud"].includes(state.battlePickup)
+      ? state.battlePickup
+      : "",
+    battleConsumed: Boolean(state.battleConsumed),
   };
+}
+
+function nextOpponent(room, fromIndex) {
+  for (let step = 1; step < room.players.length; step += 1) {
+    const index = (fromIndex + step) % room.players.length;
+    if (room.players[index]?.connected) return index;
+  }
+  return -1;
+}
+
+function settleBattlePickup(room, playerIndex, state) {
+  if (room.round?.mode !== "battle") return null;
+  if (!Array.isArray(room.battleEffects)) {
+    room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
+  }
+  const current = room.battleEffects[playerIndex] || (room.battleEffects[playerIndex] = { effect: "", shield: false });
+  if (state.battleConsumed && current.effect) current.effect = "";
+  const pickup = state.battlePickup;
+  if (!pickup) return null;
+  if (pickup === "shield") {
+    current.shield = true;
+    return { pickup, targetIndex: playerIndex, blocked: false };
+  }
+  if (pickup === "boost" || pickup === "bounce") {
+    current.effect = pickup;
+    return { pickup, targetIndex: playerIndex, blocked: false };
+  }
+  const targetIndex = nextOpponent(room, playerIndex);
+  if (targetIndex < 0) return null;
+  const target = room.battleEffects[targetIndex] || (room.battleEffects[targetIndex] = { effect: "", shield: false });
+  if (target.shield) {
+    target.shield = false;
+    return { pickup, targetIndex, blocked: true };
+  }
+  target.effect = pickup;
+  return { pickup, targetIndex, blocked: false };
 }
 
 function finiteNumber(value, fallback = 0) {
@@ -242,6 +307,7 @@ io.on("connection", (socket) => {
         players: [player],
         turnStates: new Map(),
         finishedThisHole: new Set(),
+        battleEffects: [],
         updatedAt: Date.now(),
       };
       rooms.set(code, room);
@@ -392,10 +458,11 @@ io.on("connection", (socket) => {
       return acknowledge(callback, { ok: false, error: "Two connected players are required." });
     }
     const requestedMode = String(payload?.mode || "stroke");
-    const mode = ["stroke", "island", "party"].includes(requestedMode) ? requestedMode : "stroke";
+    const mode = ["stroke", "island", "party", "battle", "longhaul", "kart"].includes(requestedMode) ? requestedMode : "stroke";
     room.round = {
       mode,
       seed: String(payload?.seed || "ONLINE").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24) || "ONLINE",
+      kartTrack:/^(?:[0-9]|1[0-9])$/.test(String(payload?.kartTrack))?String(payload.kartTrack):'random',
       biome: String(payload?.biome || "auto").slice(0, 16),
       routing: String(payload?.routing || "balanced").slice(0, 16),
     };
@@ -404,6 +471,8 @@ io.on("connection", (socket) => {
     room.holeIndex = 0;
     room.turnStates.clear();
     room.finishedThisHole.clear();
+    room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
+    if(mode === "kart") startKart(room);
     touch(room);
     acknowledge(callback, { ok: true });
     io.to(room.code).emit("game:started", publicRoom(room));
@@ -412,6 +481,36 @@ io.on("connection", (socket) => {
   // Live packets are visual-only. The authoritative score/turn still comes
   // from turn:submit. A compact ~25 Hz relay keeps hosted spectators smooth;
   // same-Wi-Fi peers normally receive the faster direct WebRTC stream.
+  socket.on('kart:state', payload=>{
+    const room=rooms.get(socket.data.roomCode),now=Date.now(),race=room?.kart;
+    if(!race||room.status!=='playing'||now<race.startAt)return;
+    const r=race.states[socket.data.playerIndex];if(!r||r.finished||now-r.lastAt<30)return;
+    const {x,y,angle,speed,t}=payload||{};
+    if(![x,y,angle,speed,t].every(Number.isFinite)||Math.abs(x)>6000||Math.abs(y)>6000||t<0||t>=1)return;
+    const budget=650*Math.min(.5,(now-r.lastAt)/1000)+35;
+    if(Math.hypot(x-r.x,y-r.y)>budget&&!payload.rescue)return;
+    if(payload.rescue){const q=kartPoint(room.round.kart,r.t);Object.assign(r,q);r.speed=0;}else Object.assign(r,{x,y,angle,speed:Math.max(-85,Math.min(530,speed)),t});
+    r.lastAt=now;
+    const gate=kartPoint(room.round.kart,((r.gates+1)%4)/4);
+    if(Math.hypot(r.x-gate.x,r.y-gate.y)<136){r.gates++;r.lap=Math.floor(r.gates/4);if(r.lap>=3){r.finished=true;race.finishOrder.push(r.index);}}
+    if(!r.item)for(let i=0;i<20;i++){if(race.boxes[i]>now)continue;const q=kartPoint(room.round.kart,(i+.5)/20,(i%3-1)*25);if(Math.hypot(r.x-q.x,r.y-q.y)<35){r.item=KartTracks.items[crypto.randomInt(KartTracks.items.length)];race.boxes[i]=now+8000;break;}}
+    for(const h of race.hazards)if(h.owner!==r.index&&h.until>now&&Math.hypot(h.x-r.x,h.y-r.y)<45){if(r.shieldUntil>now)r.shieldUntil=0;else r.slowUntil=now+3000;h.until=0;}
+    touch(room);
+  });
+  socket.on('kart:use',()=>{
+    const room=rooms.get(socket.data.roomCode),race=room?.kart,now=Date.now();if(!race||now<race.startAt)return;
+    const r=race.states[socket.data.playerIndex];if(!r||r.finished||!r.item)return;
+    const item=r.item;r.item='';
+    if(item==='turbo')r.boostUntil=now+4000;
+    if(item==='shield')r.shieldUntil=now+8000;
+    if(item==='storm')for(const rival of race.states)if(rival!==r){if(rival.shieldUntil>now)rival.shieldUntil=0;else rival.slowUntil=now+4000;}
+    if(item==='star'){r.boostUntil=now+6000;r.shieldUntil=now+6000;r.starUntil=now+6000;}
+    if(item==='repair'){r.repairAt=now;r.slowUntil=0;r.shieldUntil=Math.max(r.shieldUntil,now+2000);}
+    if(item==='rocket'){const target=race.states.filter(v=>v!==r&&!v.finished).sort((a,b)=>((a.t-r.t+1)%1)-((b.t-r.t+1)%1))[0];if(target){if(target.shieldUntil>now)target.shieldUntil=0;else target.slowUntil=now+4000;}}
+    if(item==='oil')race.hazards.push({...kartPoint(room.round.kart,r.t-.012),owner:r.index,until:now+18000});
+    io.to(room.code).emit('kart:item',{index:r.index,item});
+  });
+
   socket.on("shot:live", (payload) => {
     const room = rooms.get(socket.data.roomCode);
     const playerIndex = socket.data.playerIndex;
@@ -437,6 +536,7 @@ io.on("connection", (socket) => {
       return acknowledge(callback, { ok: false, error: "That is not the active turn." });
     }
     const state = sanitizeTurnState(payload?.state);
+    const battleResult = settleBattlePickup(room, playerIndex, state);
     room.turnStates.set(playerIndex, state);
     if (state.finished) {
       room.finishedThisHole.add(playerIndex);
@@ -459,6 +559,7 @@ io.on("connection", (socket) => {
       activeIndex: room.activeIndex,
       holeComplete: allFinished,
       room: publicRoom(room),
+      battleResult,
     };
     acknowledge(callback, { ok: true });
     io.to(room.code).emit("turn:state", event);
@@ -477,6 +578,7 @@ io.on("connection", (socket) => {
     room.status = "playing";
     room.turnStates.clear();
     room.finishedThisHole.clear();
+    room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
     touch(room);
     acknowledge(callback, { ok: true });
     io.to(room.code).emit("hole:advanced", publicRoom(room));
