@@ -2,6 +2,13 @@
 
 Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
 
+## Controller Fix 11
+
+- Keeps Fix 10's proven dual-path phyphox polling and makes the rendered club track irregular 70–200 ms phone packets with faster, bounded visual prediction. Shot detection, contact, power, and trajectory physics still use measured samples only.
+- Fixes online Next Hole using local navigation while the room was in `hole-complete`; every browser now waits for and loads the server-authoritative hole index, with room-state recovery if a client missed the advance event.
+- Rebuilds Coin Collect as five one-shot driving-range stages with three clean flight lanes. Gold coins score 1 point and larger red bonus coins score 3.
+- Makes physical wind coupling roughly 70% stronger and increases airborne wind streak readability while keeping preview and live-ball physics matched.
+
 ## Controller Fix 10
 
 - Fixes the single-player regression where custom phyphox buffers connected, produced one orientation, then returned empty threshold reads until the game falsely disconnected the phone.
@@ -25,7 +32,7 @@ Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion control
 - Play **Moon Golf**, **Mega Cup Mayhem**, and **Bounce Blitz** as local party modes.
 - Standard Stroke Play and the online room system retain their established physics and controller behavior.
 - **Target Golf** now removes cup scoring and uses three separate Gold, Silver, and Blue bullseyes.
-- **Coin Collect** creates four treasure holes with large airborne coins and per-player collection totals.
+- **Coin Collect** gives every player five range shots through aligned airborne lanes, with 1-point gold and 3-point red bonus coins.
 - **Wild Conditions** now uses major rule changes including hurricane crosswinds, ice fairways, high altitude, heavy gravity, glass greens, and sticky turf.
 - **Party Wheel** works in online multiplayer and deterministically chooses a new map/rule for every hole.
 - Moon Golf replaces its trees with a lightweight instanced field of floating lunar rocks.

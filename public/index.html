@@ -1863,7 +1863,7 @@ label.message{display:block;margin-top:9px}
   <div class="worldTourGround" aria-hidden="true"></div>
   <div class="worldTourFrame">
     <div class="worldTourCopy">
-      <div class="worldTourEyebrow">Tour Edition · v107 · Controller Fix 10 · Stable Phyphox</div>
+      <div class="worldTourEyebrow">Tour Edition · v107 · Controller Fix 11 · Range Rush</div>
       <h1 id="worldTourHeading" class="worldTourName"><span>Gyro Golf</span><strong>World Tour</strong></h1>
       <p class="worldTourTagline">Take your real swing across championship courses, world biomes, island routes, and a full tour career.</p>
       <button id="enterWorldTourBtn" class="worldTourEnter" type="button">Enter World Tour <span aria-hidden="true">→</span></button>
@@ -1979,7 +1979,7 @@ label.message{display:block;margin-top:9px}
         <button type="button" class="gameModeCard" data-game-mode="coin">
           <div class="modeIcon">🪙</div>
           <div class="modeTitle">Coin Collect</div>
-          <div class="modeMini">4 treasure holes · fly through the most floating coins</div>
+          <div class="modeMini">5 range shots · aligned gold and red bonus coins</div>
         </button>
         <button type="button" class="gameModeCard" data-game-mode="party">
           <div class="modeIcon">🎡</div>
@@ -2628,7 +2628,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
   // ---------------- v43 DIAGNOSTIC RECORDER ----------------
-  const DEBUG_VERSION='v107-phyphox-dual-path-controller-fix10';
+  const DEBUG_VERSION='v107-smooth-phyphox-coin-range-online-hole-fix11';
   const debugEvents=[];
   const debugSamples=[];
   const DEBUG_MAX_EVENTS=700;
@@ -6086,9 +6086,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       oneShot:false,requiresTwo:false
     },
     coin:{
-      id:'coin',icon:'🪙',name:'Coin Collect',short:'Coins',holes:4,
-      description:'Four treasure holes filled with large floating coins. Shape shots through the coin lines; the player with the most coins wins.',
-      oneShot:false,requiresTwo:false
+      id:'coin',icon:'🪙',name:'Coin Collect',short:'Coins',holes:5,
+      description:'Five shots on a dedicated driving range. Pick a clearly aligned coin lane: gold is worth 1 point and red bonus coins are worth 3.',
+      oneShot:true,requiresTwo:false
     },
     party:{
       id:'party',icon:'🎡',name:'Party Wheel',short:'Party',holes:6,
@@ -8537,27 +8537,46 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   function attachCoinChallenges(holes){
     holes.forEach((hole,index)=>{
-      const count=randi(9,12);
       const coins=[];
-      for(let i=0;i<count;i++){
-        const fraction=.14+(i/(Math.max(1,count-1)))*.74;
-        const p=generatorRoutePointAtFraction(hole.route,fraction);
-        const before=generatorRoutePointAtFraction(hole.route,Math.max(0,fraction-.018));
-        const after=generatorRoutePointAtFraction(hole.route,Math.min(1,fraction+.018));
-        const dx=after.x-before.x;
-        const dz=after.z-before.z;
-        const length=Math.hypot(dx,dz)||1;
-        const lane=(i%3-1)*Math.min(12,hole.fairwayWidth*.16)+rand(-3,3);
-        coins.push({
-          id:`C${index}-${i}`,
-          x:p.x+(dz/length)*lane,
-          z:p.z-(dx/length)*lane,
-          height:4.5+Math.sin(Math.PI*fraction)*rand(8,19),
-          radius:3.35
+      const laneSpacing=14+index%3*2;
+      const laneOffsets=[-laneSpacing,0,laneSpacing];
+      const fractions=[.12,.22,.32,.42,.52,.62,.72,.82];
+
+      // Three deliberately clean flight corridors replace the former random
+      // cloud. Every coin in a lane shares the same start line, while its
+      // height follows a broad, playable driver arc. Red coins are visible,
+      // slightly larger bonuses rather than surprise score modifiers.
+      laneOffsets.forEach((lane,laneIndex)=>{
+        fractions.forEach((fraction,step)=>{
+          const p=generatorRoutePointAtFraction(hole.route,fraction);
+          const before=generatorRoutePointAtFraction(hole.route,Math.max(0,fraction-.018));
+          const after=generatorRoutePointAtFraction(hole.route,Math.min(1,fraction+.018));
+          const dx=after.x-before.x;
+          const dz=after.z-before.z;
+          const length=Math.hypot(dx,dz)||1;
+          const bonus=step===4 || step===7;
+          coins.push({
+            id:`C${index}-${laneIndex}-${step}`,
+            x:p.x+(dz/length)*lane,
+            z:p.z-(dx/length)*lane,
+            height:4.8+Math.sin(Math.PI*fraction)*22,
+            radius:bonus?4.9:4.35,
+            value:bonus?3:1,
+            color:bonus?'red':'gold'
+          });
         });
-      }
-      hole.coinChallenge={coins};
-      hole.subtitle=`${hole.subtitle} · ${count} large floating coins line the safest route`;
+      });
+
+      hole.name='Coin Collect Driving Range';
+      hole.archetypeLabel='Coin Lane Range';
+      hole.rangeStage=index+1;
+      hole.coinChallenge={
+        coins,
+        laneCount:laneOffsets.length,
+        attemptsTotal:holes.length
+      };
+      hole.subtitle=
+        `Shot ${index+1} of ${holes.length} · choose one of ${laneOffsets.length} aligned coin lanes · gold 1 point · red 3 points`;
     });
     return holes;
   }
@@ -8617,7 +8636,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     if(modeId==='coin'){
-      return attachCoinChallenges(generateRandomRound(mode.holes));
+      return attachCoinChallenges(generateLongDriveRangeRound(mode.holes));
     }
 
     if(modeId==='party'){
@@ -9644,7 +9663,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function onlineAdvanceRequested(){
-    if(!onlineGameActive()){
+    // The room is intentionally in "hole-complete" here, so
+    // onlineGameActive() is false. Checking that helper made the host advance
+    // only its local browser while the server and guests stayed behind.
+    if(!onlineInRoom()){
       nextHoleOrReplayCourse();
       return;
     }
@@ -9703,6 +9725,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function onlineLoadAdvancedHole(room){
+    if(!room || !Number.isFinite(Number(room.holeIndex))) return;
     onlineResetRemoteLive();
     onlineApplyRoomState(room);
     if(!gameStarted || room.holeIndex>=HOLES.length) return;
@@ -9712,6 +9735,28 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     onlineSession.status='playing';
     onlineSession.submitting=false;
     onlineSyncTurnUI();
+  }
+
+  function onlineHandleRoomState(room){
+    if(!room) return;
+    const authoritativeHole=Number(room.holeIndex);
+    const needsHoleRecovery=(
+      gameStarted &&
+      room.round &&
+      Number.isInteger(authoritativeHole) &&
+      authoritativeHole>=0 &&
+      authoritativeHole<HOLES.length &&
+      authoritativeHole!==currentHoleIndex
+    );
+
+    if(needsHoleRecovery){
+      // Recover clients that briefly disconnected or missed hole:advanced.
+      // The server's hole index wins; loading it also clears the old turn lock.
+      onlineLoadAdvancedHole(room);
+      return;
+    }
+
+    onlineApplyRoomState(room);
   }
 
   function onlineSyncTurnUI(){
@@ -9790,7 +9835,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
         onlineSetStatus('Online server disconnected. Reconnecting automatically…',true);
       }
     });
-    socket.on('room:state',onlineApplyRoomState);
+    socket.on('room:state',onlineHandleRoomState);
     socket.on('game:started',onlineBeginSyncedGame);
     socket.on('turn:state',onlineApplyShotState);
     socket.on('shot:live',onlineApplyLiveShot);
@@ -12815,7 +12860,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
   // v93: make ordinary 5–10 mph wind readable even on shorter shots.
   // This stays aligned with the exact same vector shown by every wind visual.
-  const BALL_WIND_RESPONSE_COEFF=.14;
+  const BALL_WIND_RESPONSE_COEFF=.24;
 
   const clubs={
     DR:{name:'Driver',nom:105,smash:1.44,launch:12,spin:2600},
@@ -14093,11 +14138,19 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // those sparse packets look much faster than they really were, followed
     // by a frozen club until the next response.
     if(packetElapsedMs>=18 && packetElapsedMs<=1500){
+      // A single late HTTP response must not make the predictor expect every
+      // future sample to be late. Bound cadence outliers relative to the
+      // already learned phone rhythm, then adapt quickly to genuine changes.
+      const cadenceSample=clamp(
+        packetElapsedMs,
+        18,
+        Math.max(150,controllerVisualPacketIntervalMs*2.15)
+      );
       controllerVisualPacketIntervalMs=
         THREE.MathUtils.lerp(
           controllerVisualPacketIntervalMs,
-          packetElapsedMs,
-          .28
+          cadenceSample,
+          .34
         );
     }
 
@@ -14113,7 +14166,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const rateResponse=
       1-
       Math.exp(
-        -packetMotionDt*12
+        -packetMotionDt*22
       );
 
     controllerVisualRateDegS+=
@@ -18086,7 +18139,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     windStreakLines.visible=true;
     const strength=clamp(WIND_MPH/16,0,1);
-    windStreakMaterial.opacity=.032+strength*.105;
+    windStreakMaterial.opacity=.05+strength*.16;
 
     const targetDir=targetDirectionFromBall();
     const centerX=ballPos.x+targetDir.x*32;
@@ -21126,9 +21179,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     // network outage indefinitely.
     const predictionHorizonMs=
       clamp(
-        controllerVisualPacketIntervalMs*2.2,
-        110,
-        560
+        controllerVisualPacketIntervalMs*1.85,
+        95,
+        360
       );
 
     const ageSeconds=
@@ -21161,12 +21214,25 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       );
     }
 
+    const maxBackPrediction=
+      swingPhase==='BACKSWING'
+        ? 84
+        : 58;
+
+    const maxForwardPrediction=(
+      swingPhase==='DOWNSWING' ||
+      swingPhase==='IMPACT' ||
+      swingPhase==='FOLLOW'
+    )
+      ? 112
+      : 68;
+
     const extrapolation=
       clamp(
         rate*
         ageSeconds,
-        -48,
-        54
+        -maxBackPrediction,
+        maxForwardPrediction
       );
 
     predicted+=
@@ -21332,11 +21398,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       // response added noticeable latency to 700–900°/s downswings.
       const swingResponse=
         visualSpeed>420
-          ? 24
+          ? 58
           : (
               visualSpeed>150
-                ? 18
-                : 12
+                ? 40
+                : 24
             );
 
       const swingAlpha=
@@ -23900,20 +23966,42 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   }
 
   function refreshCoinChallengeVisuals(){
-    clearGroupDeep(coinChallengeGroup);
-    if(currentGameModeId!=='coin' || !currentHole?.coinChallenge?.coins?.length) return;
+    if(currentGameModeId!=='coin' || !currentHole?.coinChallenge?.coins?.length){
+      clearGroupDeep(coinChallengeGroup);
+      coinChallengeGroup.userData.challengeKey='';
+      coinChallengeGroup.userData.face=null;
+      coinChallengeGroup.userData.rim=null;
+      return;
+    }
     const coins=currentHole.coinChallenge.coins;
     const collected=new Set(ensurePlayerHoleState()?.collectedCoinIds||[]);
-    const face=new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(2.15,2.15,.48,20),
-      new THREE.MeshStandardMaterial({color:0xffc928,metalness:.58,roughness:.27,emissive:0x694200,emissiveIntensity:.28}),
-      coins.length
-    );
-    const rim=new THREE.InstancedMesh(
-      new THREE.TorusGeometry(2.18,.22,8,24),
-      new THREE.MeshStandardMaterial({color:0xffed75,metalness:.74,roughness:.20}),
-      coins.length
-    );
+    const challengeKey=`${currentCourseSeed}|${currentHoleIndex}|${coins.length}`;
+    let face=coinChallengeGroup.userData.face;
+    let rim=coinChallengeGroup.userData.rim;
+
+    if(
+      coinChallengeGroup.userData.challengeKey!==challengeKey ||
+      !face ||
+      !rim
+    ){
+      clearGroupDeep(coinChallengeGroup);
+      face=new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(2.15,2.15,.48,20),
+        new THREE.MeshStandardMaterial({color:0xffffff,metalness:.58,roughness:.27,emissive:0x321900,emissiveIntensity:.24}),
+        coins.length
+      );
+      rim=new THREE.InstancedMesh(
+        new THREE.TorusGeometry(2.18,.22,8,24),
+        new THREE.MeshStandardMaterial({color:0xffffff,metalness:.74,roughness:.20}),
+        coins.length
+      );
+      face.castShadow=true;
+      coinChallengeGroup.add(face,rim);
+      coinChallengeGroup.userData.challengeKey=challengeKey;
+      coinChallengeGroup.userData.face=face;
+      coinChallengeGroup.userData.rim=rim;
+    }
+
     const dummy=new THREE.Object3D();
     coins.forEach((coin,index)=>{
       const hidden=collected.has(coin.id);
@@ -23923,15 +24011,17 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       coin.worldY=y;
       dummy.position.set(coin.x,y,coin.z);
       dummy.rotation.set(Math.PI/2,0,0);
-      dummy.scale.setScalar(hidden?.001:1);
+      dummy.scale.setScalar(hidden?.001:(coin.value>1?1.16:1));
       dummy.updateMatrix();
       face.setMatrixAt(index,dummy.matrix);
       rim.setMatrixAt(index,dummy.matrix);
+      face.setColorAt(index,new THREE.Color(coin.value>1?0xef3f38:0xffc928));
+      rim.setColorAt(index,new THREE.Color(coin.value>1?0xff9b7a:0xffed75));
     });
     face.instanceMatrix.needsUpdate=true;
     rim.instanceMatrix.needsUpdate=true;
-    face.castShadow=true;
-    coinChallengeGroup.add(face,rim);
+    if(face.instanceColor) face.instanceColor.needsUpdate=true;
+    if(rim.instanceColor) rim.instanceColor.needsUpdate=true;
   }
 
   function rebuildMoonFloatingRocks(){
@@ -28298,7 +28388,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     if(currentGameModeId==='coin'){
-      return `${Math.round(player.modeTotal)} coins`;
+      return `${Math.round(player.modeTotal)} pts`;
     }
 
     return formatModeTotal(player);
@@ -28515,7 +28605,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     if(currentGameModeId==='coin'){
-      return `${Math.round(player.modeTotal)} coins`;
+      return `${Math.round(player.modeTotal)} pts`;
     }
 
     return formatScore(completedCourseDiff(player));
@@ -28546,7 +28636,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     }
 
     if(currentGameModeId==='coin'){
-      return `${Math.round(value||0)} coins`;
+      return `${Math.round(value||0)} pts`;
     }
 
     return String(value);
@@ -28640,6 +28730,17 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
             ? landing.lie.toLowerCase()
             : result.distance.toFixed(result.distance<10?1:0)+' yd from center'
         }`
+      };
+    }
+
+    if(currentGameModeId==='coin'){
+      const player=activePlayer();
+      const score=Number(player.modeHoleScores[currentHoleIndex])||0;
+      const collected=ensurePlayerHoleState(player).collectedCoinIds?.length||0;
+      return {
+        score,
+        metric:score,
+        text:`${score} point${score===1?'':'s'} from ${collected} coin${collected===1?'':'s'} · ${player.modeTotal} total`
       };
     }
 
@@ -29239,7 +29340,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       ? `Range Stage ${currentHoleIndex+1} · ${currentHole.yards} yd`
       : `Hole ${currentHoleIndex+1} · ${currentHole.yards} yd · Par ${currentHole.par}`;
     const legendMeta=drivingRange
-      ? `${currentHole.name} · Long Drive Range`
+      ? `${currentHole.name} · ${currentGameModeId==='coin'?'Coin Collect Range':'Long Drive Range'}`
       : `${currentHole.name} · ${currentHole.archetypeLabel||'Championship'}`;
     const legendTags=[];
     if(drivingRange) legendTags.push('50-yard markers');
@@ -29255,7 +29356,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       legendTags.push(`Custom · ${currentHole.customHazardHole?(currentHole.customHazardType||'Hazard'):'Clear'} · ${customGameConfig.power}% power`);
     }
     if(currentHole.partyRule) legendTags.push(`Party Wheel: ${currentHole.partyRule.name} · ${currentHole.partyRule.detail}`);
-    if(currentGameModeId==='coin') legendTags.push(`${currentHole.coinChallenge?.coins?.length||0} floating coins`);
+    if(currentGameModeId==='coin') legendTags.push(`3 aligned lanes · gold 1 pt · red 3 pts`);
     if(currentHole.gameModifier) legendTags.push(`${currentHole.gameModifier.name}: ${currentHole.gameModifier.detail}`);
     legendTags.push(`${currentHole.biome||currentHole.theme?.name||'Course'} · seed ${normalizeCourseSeed(currentCourseSeed)}`);
     $('holeLegend').innerHTML=
@@ -29285,7 +29386,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
           : currentGameModeId==='target'
             ? 'ONE SHOT · choose Gold (150), Silver (100), or Blue (70) and score its rings'
             : currentGameModeId==='coin'
-              ? `TREASURE RUN · ${activePlayer().modeTotal} coins collected · fly through the large coins`
+              ? `SHOT ${currentHoleIndex+1} OF ${HOLES.length} · ${activePlayer().modeTotal} points · choose an aligned lane · red coins are worth 3`
             : currentGameModeId==='party'
               ? `${partyRule?.icon||'🎡'} ${partyRule?.name||'PARTY RULE'} · ${partyRule?.detail||'new rule every hole'}`
             : currentGameModeId==='tour'
@@ -29319,7 +29420,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     drawClubIcon(selected);
     $('distanceBanner').textContent=
       drivingRange
-        ? `${currentHole.yards} yd range · best ${Math.round(activePlayer().modeTotal||0)} yd`
+        ? (
+            currentGameModeId==='coin'
+              ? `${currentHole.yards} yd coin range · ${Math.round(activePlayer().modeTotal||0)} pts`
+              : `${currentHole.yards} yd range · best ${Math.round(activePlayer().modeTotal||0)} yd`
+          )
         : Math.max(0,Math.round(rem))+' yds left';
     $('windSpeedText').textContent=`${WIND_MPH} mph`;
     $('windDirectionText').textContent=windRelativeLabel();
@@ -30902,7 +31007,11 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
 
     $('lastShot').textContent=
       currentHole.isDrivingRange
-        ? `${activePlayer().name} · Range Stage ${currentHoleIndex+1}: one drive · current best ${Math.round(activePlayer().modeTotal||0)} yd.`
+        ? (
+            currentGameModeId==='coin'
+              ? `${activePlayer().name} · Coin shot ${currentHoleIndex+1} of ${HOLES.length}: pick one aligned lane · gold 1 point · red 3 points.`
+              : `${activePlayer().name} · Range Stage ${currentHoleIndex+1}: one drive · current best ${Math.round(activePlayer().modeTotal||0)} yd.`
+          )
         : `${activePlayer().name} · Hole ${currentHoleIndex+1}: ${currentHole.name} · ${currentHole.yards} yd · Par ${currentHole.par}.`;
     $('clubSpeed').textContent='0';
     $('ballSpeed').textContent='0';
@@ -31262,6 +31371,8 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     const abx=b.x-a.x, aby=b.y-a.y, abz=b.z-a.z;
     const lengthSq=abx*abx+aby*aby+abz*abz;
     let gained=0;
+    let gainedCoins=0;
+    let redCoins=0;
     for(const coin of currentHole.coinChallenge.coins){
       if(collected.has(coin.id)) continue;
       const cy=Number.isFinite(coin.worldY)
@@ -31273,7 +31384,10 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
       const qx=a.x+abx*t, qy=a.y+aby*t, qz=a.z+abz*t;
       if(Math.hypot(coin.x-qx,cy-qy,coin.z-qz)<=coin.radius+BALL_RADIUS){
         collected.add(coin.id);
-        gained++;
+        const value=Math.max(1,Number(coin.value)||1);
+        gained+=value;
+        gainedCoins++;
+        if(value>1) redCoins++;
       }
     }
     if(!gained) return;
@@ -31283,8 +31397,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
     player.modeHoleScores[currentHoleIndex]=(player.modeHoleScores[currentHoleIndex]||0)+gained;
     refreshCoinChallengeVisuals();
     playPackagedOneShot('coin',.78,rand(.96,1.07));
-    showCelebrationBanner(gained>1?`+${gained} COINS`:'+1 COIN',720);
-    $('lastShot').textContent=`${player.name} collected ${gained} coin${gained===1?'':'s'} · ${player.modeTotal} total`;
+    showCelebrationBanner(`+${gained} COIN POINT${gained===1?'':'S'}`,720);
+    $('lastShot').textContent=
+      `${player.name} collected ${gainedCoins} coin${gainedCoins===1?'':'s'}${redCoins?` (${redCoins} red bonus${redCoins===1?'':'es'})`:''} · +${gained} · ${player.modeTotal} total`;
     updateScorecard();
   }
 
@@ -34525,7 +34640,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/+esm";
   $('resetCamera').addEventListener('click',setAddressCamera);
   $('recoverClub').addEventListener('click',()=>emergencyResetEverything('manual'));
   $('resetHole').addEventListener('click',resetHole);
-  $('replay').addEventListener('click',nextHoleOrReplayCourse);
+  $('replay').addEventListener('click',onlineAdvanceRequested);
 
   // Emergency fallback: press R while not typing in a control.
   window.addEventListener('keydown',e=>{
