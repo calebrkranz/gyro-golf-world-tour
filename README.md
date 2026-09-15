@@ -1,3 +1,4 @@
+***I do not own any of the sounds in the game***
 # Gyro Golf World Tour
 
 Gyro Golf World Tour is a browser-based 3D golf game with phyphox motion controls, mouse fallback controls, generated courses, Island Hopper, Tour Career, room-code online multiplayer, cosmetic animal mounts, and arcade party modes.
