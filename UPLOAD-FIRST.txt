@@ -1,19 +1,19 @@
-CIRCUITS + DRIVING AUDIO UPDATE
-Upload the entire package, including NEW kart-tracks.js at the root next to server.js.
-Required: public/index.html, server.js, kart-tracks.js.
-Redeploy Render, then refresh every computer.
-Title should show Kart Circuits + Audio.
-Choose the circuit and existing golf theme in the main menu.
+WIDE TRACK + ROULETTE UPDATE
+Replace public/index.html, server.js AND kart-tracks.js together, redeploy and refresh all players.
+Title: Kart Wide Track + Roulette.
+Road 30% wider; 8 pickups per lap; 12-second racer pickup cooldown; 1.5-second roulette.
+New synthesized effects follow the existing sound-effects setting.
 
-KART RALLY 3D + AIM FIX
-If the previous Kart Rally server is already deployed, replace public/index.html and redeploy.
-Otherwise upload this whole package, including server.js. Refresh all players.
-Title: Kart Rally 3D / Aim Fix.
+KART CONTACT + POWER-UPS UPDATE
+Replace public/index.html, server.js AND kart-tracks.js together.
+Redeploy Render and refresh every player. Title: Kart Contact + Power-ups.
+Do not update just the HTML for online play.
 
-KART RALLY UPDATE
-Upload public/index.html AND server.js together to the existing GitHub repository.
-Render: Manual Deploy > Deploy latest commit. Refresh every player browser.
-Title should say Kart Rally Update / Controller Fix 12.
+Space: use P1 item. Enter: use P2 item in split screen.
+Hold your Shift key while cornering at speed, then release for a drift boost.
+Bright green/white road pads give a short boost.
+Oil causes spinouts. White homing golf balls hit rivals. Star protects and rams.
+Each player has a visible inventory slot with the item action and active effect.
 
 GYRO GOLF WORLD TOUR — NEXT STEPS
 

@@ -46,11 +46,22 @@ function startKart(room){
  const themes=['desert','autumn','tropical','alpine','links','cherry','volcanic','aurora'];
  const config={trackId:room.round.kartTrack==='random'?crypto.randomInt(20):Number(room.round.kartTrack),scale:48+crypto.randomInt(8),rotation:crypto.randomInt(628)/100,phase:crypto.randomInt(628)/100,theme:themes.includes(room.round.biome)?room.round.biome:themes[crypto.randomInt(themes.length)]};
  room.round.kart=config;
- room.kart={startAt:Date.now()+4000,boxes:Array(20).fill(0),hazards:[],finishOrder:[],states:room.players.map((p,i)=>({...kartPoint(config,-.008*i,(i%2?1:-1)*22),index:i,t:((-.008*i)%1+1)%1,speed:0,gates:0,lap:0,item:'',boostUntil:0,shieldUntil:0,slowUntil:0,lastAt:Date.now(),finished:false}))};
+ room.kart={startAt:Date.now()+4000,contacts:new Map(),projectiles:[],boxes:Array(8).fill(0),hazards:[],finishOrder:[],states:room.players.map((p,i)=>({...kartPoint(config,-.008*i,(i%2?1:-1)*22),index:i,t:((-.008*i)%1+1)%1,speed:0,gates:0,lap:0,item:'',boostUntil:0,shieldUntil:0,slowUntil:0,lastAt:Date.now(),finished:false}))};
  room.round.kartStartAt=room.kart.startAt;
 }
+function kartImpact(room,r,seconds,label,bumpX=0,bumpY=0){
+ const now=Date.now(),blocked=r.starUntil>now||r.shieldUntil>now;
+ if(seconds&&blocked){if(!(r.starUntil>now))r.shieldUntil=0;}else if(seconds){r.spinUntil=now+seconds*1000;r.speed*=.38;bumpX=-Math.sin(r.angle)*65;bumpY=Math.cos(r.angle)*65;}
+ io.to(room.code).emit('kart:impact',{index:r.index,x:r.x,y:r.y,speed:r.speed,bumpX,bumpY,spinUntil:r.spinUntil||0,now,label,blocked});
+}
+function kartContacts(room){const race=room.kart,now=Date.now();for(let i=0;i<race.states.length;i++)for(let j=i+1;j<race.states.length;j++){
+ const a=race.states[i],b=race.states[j];if(a.finished||b.finished)continue;const c=KartTracks.contactPair(a,b),key=i+':'+j;if(!c||now<(race.contacts.get(key)||0))continue;
+ race.contacts.set(key,now+100);a.x-=c.nx*c.overlap*.51;a.y-=c.ny*c.overlap*.51;b.x+=c.nx*c.overlap*.51;b.y+=c.ny*c.overlap*.51;a.speed*=.97;b.speed*=.97;
+ kartImpact(room,a,b.starUntil>now?1.5:0,'KART CONTACT',-c.nx*Math.min(65,c.impulse),-c.ny*Math.min(65,c.impulse));kartImpact(room,b,a.starUntil>now?1.5:0,'KART CONTACT',c.nx*Math.min(65,c.impulse),c.ny*Math.min(65,c.impulse));
+}}
 setInterval(()=>{
  const now=Date.now();for(const room of rooms.values())if(room.kart&&room.status==='playing'){
+  for(const shot of room.kart.projectiles)if(shot.hitAt<=now&&!shot.done){shot.done=true;const target=room.kart.states[shot.targetIndex];if(target&&!target.finished)kartImpact(room,target,1.7,'GOLF BALL HIT');}room.kart.projectiles=room.kart.projectiles.filter(p=>!p.done);
   room.kart.hazards=room.kart.hazards.filter(h=>h.until>now);
   io.to(room.code).volatile.emit('kart:snapshot',{now,startAt:room.kart.startAt,states:room.kart.states,boxes:room.kart.boxes,hazards:room.kart.hazards,finishOrder:room.kart.finishOrder});
  }
@@ -491,24 +502,28 @@ io.on("connection", (socket) => {
     if(Math.hypot(x-r.x,y-r.y)>budget&&!payload.rescue)return;
     if(payload.rescue){const q=kartPoint(room.round.kart,r.t);Object.assign(r,q);r.speed=0;}else Object.assign(r,{x,y,angle,speed:Math.max(-85,Math.min(530,speed)),t});
     r.lastAt=now;
+    if(payload.drifting&&r.speed>150&&!(r.spinUntil>now)){r.driftStarted ||= now;}else{if(r.driftStarted&&now-r.driftStarted>800&&now>(r.driftReady||0)){r.boostUntil=Math.max(r.boostUntil,now+1800);r.driftReady=now+3000;}r.driftStarted=0;}
+    for(let i=0;i<5;i++){const pad=kartPoint(room.round.kart,.1+i*.2,(i%2?1:-1)*35);if(now>(r.padReady||0)&&Math.hypot(r.x-pad.x,r.y-pad.y)<38){r.padReady=now+4000;r.boostUntil=Math.max(r.boostUntil,now+1600);}}
+    kartContacts(room);
     const gate=kartPoint(room.round.kart,((r.gates+1)%4)/4);
     if(Math.hypot(r.x-gate.x,r.y-gate.y)<136){r.gates++;r.lap=Math.floor(r.gates/4);if(r.lap>=3){r.finished=true;race.finishOrder.push(r.index);}}
-    if(!r.item)for(let i=0;i<20;i++){if(race.boxes[i]>now)continue;const q=kartPoint(room.round.kart,(i+.5)/20,(i%3-1)*25);if(Math.hypot(r.x-q.x,r.y-q.y)<35){r.item=KartTracks.items[crypto.randomInt(KartTracks.items.length)];race.boxes[i]=now+8000;break;}}
-    for(const h of race.hazards)if(h.owner!==r.index&&h.until>now&&Math.hypot(h.x-r.x,h.y-r.y)<45){if(r.shieldUntil>now)r.shieldUntil=0;else r.slowUntil=now+3000;h.until=0;}
+    if(!r.item&&now>(r.pickupReady||0))for(let i=0;i<8;i++){if(race.boxes[i]>now)continue;const q=kartPoint(room.round.kart,(i+.5)/8,(i%3-1)*25);if(Math.hypot(r.x-q.x,r.y-q.y)<35){r.item=KartTracks.items[crypto.randomInt(KartTracks.items.length)];r.itemReadyAt=now+1500;r.pickupReady=now+12000;race.boxes[i]=now+18000;break;}}
+    for(const h of race.hazards)if(h.owner!==r.index&&h.until>now&&Math.hypot(h.x-r.x,h.y-r.y)<45){kartImpact(room,r,2.2,'OIL SPINOUT');h.until=0;}
     touch(room);
   });
   socket.on('kart:use',()=>{
     const room=rooms.get(socket.data.roomCode),race=room?.kart,now=Date.now();if(!race||now<race.startAt)return;
-    const r=race.states[socket.data.playerIndex];if(!r||r.finished||!r.item)return;
+    const r=race.states[socket.data.playerIndex];if(!r||r.finished||!r.item||now<r.itemReadyAt)return;
     const item=r.item;r.item='';
     if(item==='turbo')r.boostUntil=now+4000;
     if(item==='shield')r.shieldUntil=now+8000;
-    if(item==='storm')for(const rival of race.states)if(rival!==r){if(rival.shieldUntil>now)rival.shieldUntil=0;else rival.slowUntil=now+4000;}
+    if(item==='storm')for(const rival of race.states)if(rival!==r&&!(rival.starUntil>now)){if(rival.shieldUntil>now)rival.shieldUntil=0;else rival.slowUntil=now+4000;}
     if(item==='star'){r.boostUntil=now+6000;r.shieldUntil=now+6000;r.starUntil=now+6000;}
-    if(item==='repair'){r.repairAt=now;r.slowUntil=0;r.shieldUntil=Math.max(r.shieldUntil,now+2000);}
-    if(item==='rocket'){const target=race.states.filter(v=>v!==r&&!v.finished).sort((a,b)=>((a.t-r.t+1)%1)-((b.t-r.t+1)%1))[0];if(target){if(target.shieldUntil>now)target.shieldUntil=0;else target.slowUntil=now+4000;}}
-    if(item==='oil')race.hazards.push({...kartPoint(room.round.kart,r.t-.012),owner:r.index,until:now+18000});
-    io.to(room.code).emit('kart:item',{index:r.index,item});
+    if(item==='repair'){r.repairAt=now;r.slowUntil=0;r.spinUntil=0;r.shieldUntil=Math.max(r.shieldUntil,now+2000);}
+    let targetIndex;
+    if(item==='rocket'){const target=race.states.filter(v=>v!==r&&!v.finished).sort((a,b)=>((a.t-r.t+1)%1)-((b.t-r.t+1)%1))[0];if(target){targetIndex=target.index;race.projectiles.push({targetIndex,hitAt:now+650});}}
+    if(item==='oil')race.hazards.push({x:r.x-Math.cos(r.angle)*55,y:r.y-Math.sin(r.angle)*55,owner:r.index,until:now+18000});
+    io.to(room.code).emit('kart:item',{index:r.index,item,targetIndex,x:r.x,y:r.y});
   });
 
   socket.on("shot:live", (payload) => {

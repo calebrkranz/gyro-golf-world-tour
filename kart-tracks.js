@@ -34,10 +34,18 @@
   for(let i=0;i<960;i++){const d=i/960*length;while(j<p.length-1&&cumulative[j+1]<d)j++;const u=(d-cumulative[j])/(cumulative[j+1]-cumulative[j]);const a=p[j],b=p[(j+1)%p.length];out.push({x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u});}
   // Expand tight outlines until the wide road can turn without folding its inner edge.
   let radius=Infinity;for(let i=0;i<960;i++){const a=out[(i+954)%960],b=out[i],c=out[(i+6)%960],cross=Math.abs((b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x));if(cross>1e-6)radius=Math.min(radius,Math.hypot(a.x-b.x,a.y-b.y)*Math.hypot(c.x-b.x,c.y-b.y)*Math.hypot(c.x-a.x,c.y-a.y)/(2*cross));}
-  const expansion=Math.max(1,115/radius);for(const q of out){q.x*=expansion;q.y*=expansion;}
+  const expansion=Math.max(1,145/radius);for(const q of out){q.x*=expansion;q.y*=expansion;}
   return {name:def.name,points:out,length:length*expansion};
  }
  function point(track,t,lane=0){const f=((t%1)+1)%1*track.length,i=Math.floor(f),a=track[i],b=track[(i+1)%track.length],u=f-i,dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;return{x:a.x+dx*u-dy/d*lane,y:a.y+dy*u+dx/d*lane,angle:Math.atan2(dy,dx)};}
  function height(t,config){const a=t*Math.PI*2,phase=config.phase||0;return 160+110*Math.sin(a+phase)+48*Math.sin(2*a-phase);}
- const api={outlines,items,build,point,height};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
+ function contactPair(a,b){
+  const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>=44)return null;
+  const nx=d>.01?dx/d:1,ny=d>.01?dy/d:0,overlap=44-d;
+  const relative=(Math.cos(a.angle)*a.speed-Math.cos(b.angle)*b.speed)*nx+(Math.sin(a.angle)*a.speed-Math.sin(b.angle)*b.speed)*ny;
+  const impulse=Math.min(135,Math.max(20,relative*.6));
+  return{nx,ny,overlap,impulse};
+ }
+
+ const api={outlines,items,build,point,height,contactPair};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
 })(typeof window!=='undefined'?window:globalThis);

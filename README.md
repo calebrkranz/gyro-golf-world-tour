@@ -153,3 +153,7 @@ The supplied car-driving MP3 is embedded. Engine pitch/volume follow speed; it s
 Items: turbo, shield, storm, oil, targeting rocket (slows the nearest rival ahead), star (six seconds of boost and shield), and recovery (clears slowdown and restores speed). Online pickups and effects are server-owned. Local two-player split-screen retains independent controls, item slots and cameras.
 
 Validation: shared client/server geometry byte check; all 20 layouts have finite geometry and checked separation for the widened road; elevation closes at the start line; renderer-stub tests cover minimap, independent controls, audio start/stop, new items and cleanup; two real Socket.IO clients complete matching reference circuits with items, checkpoint/finish state and host room closure. Browser GPU/audio output and physical phyphox were not tested here.
+
+
+## Kart Contact + Power-ups
+Update public/index.html, server.js, and kart-tracks.js together. Karts push each other; oil and homing golf balls cause timed spinouts. Shield blocks an attack; Star protects and enables ram attacks. Road pads and charged cornering (Shift, release) grant boosts. Local AI uses pickups. Each human has an item HUD, and golfer colors/hats appear on drivers. Phyphox polling and swing code are unchanged.
