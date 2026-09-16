@@ -157,3 +157,7 @@ Validation: shared client/server geometry byte check; all 20 layouts have finite
 
 ## Kart Contact + Power-ups
 Update public/index.html, server.js, and kart-tracks.js together. Karts push each other; oil and homing golf balls cause timed spinouts. Shield blocks an attack; Star protects and enables ram attacks. Road pads and charged cornering (Shift, release) grant boosts. Local AI uses pickups. Each human has an item HUD, and golfer colors/hats appear on drivers. Phyphox polling and swing code are unchanged.
+
+
+## Kart Rally Pace Update
+Top speed +5%, acceleration +35%, real drift slide and two-stage boosts, slipstream rewards, elevated narrow shortcuts, launch ramps and synchronized golf-ball crossings. Longer tracks use two laps. Kart setup moved into the Kart Rally screen. Left speedometer, charge feedback, wind audio and pooled speed streaks added. All three files (HTML, server and kart-tracks) must be updated together. Race duration targets remain estimates until player testing; phyphox code unchanged.

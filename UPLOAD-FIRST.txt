@@ -1,3 +1,39 @@
+KART INFIELD TOUR
+Update public/index.html (and keep server.js and kart-tracks.js from this package), redeploy, refresh everyone.
+Golf-course infield with striped fairways, greens, bunkers, tees, cups and flags. Infield placement checks polygon interior and clearance from every road segment.
+AI karts retain lateral push displacement longer. Existing multiplayer contact remains enabled.
+Original wind and bird audio loops now accompany races; respect sound setting and stop on pause/exit.
+
+KART AIR TOUR
+Update public/index.html, server.js and kart-tracks.js together; redeploy and refresh every player.
+Single golf-style speed dial; top bar no longer repeats speed.
+Large striped curved ramps launch karts for 2 seconds. Land on-road without a spinout for a boost and Flow credit. Airborne karts clear oil and crossing golf balls.
+Road-clearance-checked grandstands and giant golf-ball towers.
+
+FLOW FESTIVAL + COUNTDOWN
+Replace public/index.html, server.js and kart-tracks.js together. Redeploy and refresh every player.
+Title: Kart Flow Festival + Countdown.
+User countdown clip embedded with big 3-2-1-GO display. Uses golf coin, hit, swoosh and crowd sounds.
+Chain 3 DIFFERENT skills within 12 seconds: drift, slipstream, close dodge, rush gate. Earn Flow burst speed and brief protection. Spinout breaks the chain.
+Turquoise gates provide boosts; gold means closing soon. Gate timer appears on speedometer.
+Themed fog, clouds, drifting particles and start-line crowd.
+
+FORE FRENZY + PLACEMENT RULES
+Replace public/index.html, server.js and kart-tracks.js together. Redeploy and refresh all players. Title: Kart Fore Frenzy.
+Flat ramps and shortcut strips removed. Approach-triggered giant balls have 1.4-second red warnings; dodge closely after they pass for a boost.
+Spawn rules exclude off-road racers, spinouts, start line, sharp bends and overlapping encounters.
+Themed scenery checks every road segment and building-footprint slope.
+
+KART RALLY PACE UPDATE
+Replace public/index.html, server.js and kart-tracks.js together. Redeploy Render and refresh all players.
+Title: Kart Rally Pace Update.
+Open Kart Rally to select circuit/theme. In an online room the host uses Start room race.
+Drift: hold Shift while steering above 20 mph. Blue charge at 0.6 seconds, gold at 1.6; release Shift to boost.
+Follow a kart closely for 1.5 seconds to earn a slipstream boost.
+Orange ramps launch the kart. Narrow tan bridges are risky shortcuts.
+Red flashing rings warn of crossing golf balls.
+Long circuits use 2 laps; others use 3.
+
 WIDE TRACK + ROULETTE UPDATE
 Replace public/index.html, server.js AND kart-tracks.js together, redeploy and refresh all players.
 Title: Kart Wide Track + Roulette.

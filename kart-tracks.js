@@ -47,5 +47,24 @@
   return{nx,ny,overlap,impulse};
  }
 
- const api={outlines,items,build,point,height,contactPair};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
+
+ const lapsForLength=length=>length>18000?2:3;
+ function drafting(r,others){return r.speed>110&&others.some(o=>{if(o===r||o.finished||o.done)return false;const dx=o.x-r.x,dy=o.y-r.y,a=dx*Math.cos(r.angle)+dy*Math.sin(r.angle),side=Math.abs(-dx*Math.sin(r.angle)+dy*Math.cos(r.angle));return a>45&&a<260&&side<34&&Math.cos(o.angle-r.angle)>.85;});}
+ function crossing(track,config,seconds,index){const t=[.21,.57,.86][index],cycle=Math.floor((seconds+index*4)/15),phase=((seconds+index*4)%15+15)%15,p=point(track,t),travel=(phase-3)/2;return{...p,t,cycle,warning:phase<3,active:phase>=3&&phase<5,x:p.x-Math.sin(p.angle)*(-190+380*travel),y:p.y+Math.cos(p.angle)*(-190+380*travel),height:height(t,config)+22+Math.sin(Math.max(0,Math.min(1,travel))*Math.PI)*26};}
+ function shortcuts(track,config){return [.10,.60].map(t=>{const a=point(track,t),b=point(track,t+.075),d=Math.hypot(b.x-a.x,b.y-a.y);return {a,b,t,end:t+.075,d,angle:Math.atan2(b.y-a.y,b.x-a.x),h1:height(t,config)+2,h2:height(t+.075,config)+2};}).filter(v=>v.d>100);}
+ function onShortcut(routes,x,y){for(const s of routes){const u=Math.max(0,Math.min(1,((x-s.a.x)*(s.b.x-s.a.x)+(y-s.a.y)*(s.b.y-s.a.y))/(s.d*s.d)));if(Math.hypot(x-s.a.x-(s.b.x-s.a.x)*u,y-s.a.y-(s.b.y-s.a.y)*u)<30)return {height:s.h1+(s.h2-s.h1)*u,t:s.t+(s.end-s.t)*u};}return null;}
+
+ function roadClearance(track,x,y){let d=Infinity;for(const p of track)d=Math.min(d,Math.hypot(x-p.x,y-p.y));return d;}
+ function canFore(track,r,shots,seconds,length){if(r.speed<120||r.spin>0||roadClearance(track,r.x,r.y)>104)return false;const t=((r.t+r.speed*1.45/length)%1+1)%1,a=point(track,t),b=point(track,t+.004);if(t<.025||t>.975||Math.cos(a.angle-b.angle)<.75)return false;return shots.filter(s=>seconds-s.start<4).length<6&&!shots.some(s=>seconds-s.start<4&&Math.hypot(point(track,s.t).x-a.x,point(track,s.t).y-a.y)<400);}
+ function foreShot(track,config,r,seconds,length,id){const t=((r.t+Math.max(160,r.speed*1.45)/length)%1+1)%1,p=point(track,t),dx=r.x-point(track,r.t).x,dy=r.y-point(track,r.t).y,lane=Math.max(-60,Math.min(60,-dx*Math.sin(r.angle)+dy*Math.cos(r.angle)));return {id,t,lane,start:seconds,owner:r.index,results:[]};}
+ function forePose(track,config,shot,seconds){const age=seconds-shot.start,p=point(track,shot.t,shot.lane),warning=age<1.4,active=age>=1.4&&age<3.2,roll=Math.max(0,age-1.4)*-90;return {warning,active,age,angle:p.angle,x:p.x+Math.cos(p.angle)*roll,y:p.y+Math.sin(p.angle)*roll,height:height(shot.t,config)+32+(warning?Math.max(0,(1.4-age))*240:Math.abs(Math.sin((age-1.4)*5))*9),targetX:p.x,targetY:p.y,ground:height(shot.t,config)};}
+ function foreContact(pose,r){if(!pose.active||r.finished||r.done)return '';const d=Math.hypot(r.x-pose.x,r.y-pose.y);return d<53?'hit':d<102&&r.speed>100&&((r.x-pose.x)*(Math.cos(r.angle)*r.speed+Math.cos(pose.angle)*90)+(r.y-pose.y)*(Math.sin(r.angle)*r.speed+Math.sin(pose.angle)*90))>0?'dodge':'';}
+
+ function flowAction(r,type,seconds){if(seconds-(r.flowAt??-100)>12)r.flowTypes=[];r.flowTypes=r.flowTypes||[];if(r.flowTypes.includes(type))return false;r.flowTypes.push(type);r.flowAt=seconds;if(r.flowTypes.length>=3){r.flowTypes=[];r.flowBursts=(r.flowBursts||0)+1;return true;}return false;}
+ function rushGate(track,config,seconds,i){const t=.08+i/8,p=point(track,t,(i%2?1:-1)*48),cycle=Math.floor((seconds+i*3)/24),phase=((seconds+i*3)%24+24)%24;return {...p,t,cycle,active:phase<18&&Math.cos(p.angle-point(track,t+.002).angle)>.8,left:Math.max(0,18-phase)};}
+
+ function jumpZones(track,length){const candidates=[];for(let i=12;i<85;i++){const t=i/100,a=point(track,t),b=point(track,t+240/length),c=point(track,t+650/length),score=Math.cos(a.angle-b.angle)+Math.cos(b.angle-c.angle);if(score>1.93)candidates.push({t,end:t+240/length,score,lane:-48});}candidates.sort((a,b)=>b.score-a.score);const zones=[];for(const c of candidates){if(zones.every(z=>Math.abs(z.t-c.t)>.22))zones.push(c);if(zones.length===2)break;}return zones;}
+ function rampState(track,zones,r){for(let i=0;i<zones.length;i++){const z=zones[i],u=(r.t-z.t)/(z.end-z.t);if(u<0||u>1.06)continue;const p=point(track,r.t,z.lane);if(Math.hypot(r.x-p.x,r.y-p.y)<36)return {i,u:Math.min(1,u),lift:60*Math.min(1,u)**2,launch:u>.92&&r.speed>150};}return null;}
+ function airLift(remaining){const u=Math.max(0,Math.min(1,1-remaining/2));return remaining>0?60*(1-u)+Math.sin(u*Math.PI)*160:0;}
+ const api={outlines,items,build,point,height,contactPair,lapsForLength,drafting,crossing,shortcuts,onShortcut,roadClearance,canFore,foreShot,forePose,foreContact,flowAction,rushGate,jumpZones,rampState,airLift};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
 })(typeof window!=='undefined'?window:globalThis);
