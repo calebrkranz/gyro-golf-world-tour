@@ -45,7 +45,7 @@ function kartPoint(config,t,lane=0){
 function startKart(room){
  const themes=['desert','autumn','tropical','alpine','links','cherry','volcanic','aurora'];
  const config={trackId:room.round.kartTrack==='random'?crypto.randomInt(20):Number(room.round.kartTrack),scale:48+crypto.randomInt(8),rotation:crypto.randomInt(628)/100,phase:crypto.randomInt(628)/100,theme:themes.includes(room.round.biome)?room.round.biome:themes[crypto.randomInt(themes.length)]};
- room.round.kart=config;const builtKart=KartTracks.build(config);config.courseLength=builtKart.length;config.jumps=KartTracks.jumpZones(builtKart.points,builtKart.length);config.laps=KartTracks.lapsForLength(config.courseLength);
+ room.round.kart=config;const builtKart=KartTracks.build(config);config.courseLength=builtKart.length;config.worldBound=Math.max(...builtKart.points.map(p=>Math.max(Math.abs(p.x),Math.abs(p.y))))+800;config.jumps=KartTracks.jumpZones(builtKart.points,builtKart.length);config.stunts=KartTracks.stuntRoutes(builtKart.points,config,builtKart.length);config.laps=KartTracks.lapsForLength(config.courseLength);
  room.kart={startAt:Date.now()+4000,contacts:new Map(),foreShots:[],foreId:0,projectiles:[],boxes:Array(8).fill(0),hazards:[],finishOrder:[],states:room.players.map((p,i)=>({...kartPoint(config,-.008*i,(i%2?1:-1)*22),index:i,t:((-.008*i)%1+1)%1,speed:0,gates:0,lap:0,item:'',boostUntil:0,shieldUntil:0,slowUntil:0,lastAt:Date.now(),finished:false}))};
  room.round.kartStartAt=room.kart.startAt;
 }
@@ -56,7 +56,7 @@ function kartImpact(room,r,seconds,label,bumpX=0,bumpY=0){
  io.to(room.code).emit('kart:impact',{index:r.index,x:r.x,y:r.y,speed:r.speed,bumpX,bumpY,spinUntil:r.spinUntil||0,now,label,blocked});
 }
 function kartContacts(room){const race=room.kart,now=Date.now();for(let i=0;i<race.states.length;i++)for(let j=i+1;j<race.states.length;j++){
- const a=race.states[i],b=race.states[j];if(a.finished||b.finished||a.airUntil>now||b.airUntil>now)continue;const c=KartTracks.contactPair(a,b),key=i+':'+j;if(!c||now<(race.contacts.get(key)||0))continue;
+ const a=race.states[i],b=race.states[j];if(a.finished||b.finished||a.rideId>=0||b.rideId>=0||a.airUntil>now||b.airUntil>now)continue;const c=KartTracks.contactPair(a,b),key=i+':'+j;if(!c||now<(race.contacts.get(key)||0))continue;
  race.contacts.set(key,now+100);a.x-=c.nx*c.overlap*.51;a.y-=c.ny*c.overlap*.51;b.x+=c.nx*c.overlap*.51;b.y+=c.ny*c.overlap*.51;a.speed*=.97;b.speed*=.97;
  kartImpact(room,a,b.starUntil>now?1.5:0,'KART CONTACT',-c.nx*Math.min(65,c.impulse),-c.ny*Math.min(65,c.impulse));kartImpact(room,b,a.starUntil>now?1.5:0,'KART CONTACT',c.nx*Math.min(65,c.impulse),c.ny*Math.min(65,c.impulse));
 }}
@@ -89,6 +89,13 @@ function newCode() {
   throw new Error("Could not allocate a room code");
 }
 
+const TRAP_TYPES=['bomb','mud','bumper','gust'];
+function battleDraft(room){
+ if(room.round?.mode!=='battle'||room.status!=='playing')return null;
+ const key=room.holeIndex+':'+room.activeIndex+':'+(room.turnStates.get(room.activeIndex)?.strokes||0);
+ if(room.trapDraft?.key!==key){const choices=[...TRAP_TYPES];for(let i=choices.length-1;i>0;i--){const j=crypto.randomInt(i+1);[choices[i],choices[j]]=[choices[j],choices[i]];}room.trapDraft={key,choices:choices.slice(0,3),placed:false};}
+ return room.trapDraft;
+}
 function publicRoom(room) {
   return {
     code: room.code,
@@ -106,6 +113,8 @@ function publicRoom(room) {
       scores: player.scores,
     })),
     turnStates: Array.from(room.turnStates.entries()).map(([playerIndex, state]) => ({ playerIndex, state })),
+    trapDraft:battleDraft(room),
+    traps:(room.traps||[]).filter(t=>t.hole===room.holeIndex),
     battleEffects: Array.isArray(room.battleEffects) ? room.battleEffects : [],
   };
 }
@@ -228,6 +237,7 @@ function nextOpponent(room, fromIndex) {
 function settleBattlePickup(room, playerIndex, state) {
   if (room.round?.mode !== "battle") return null;
   if (!Array.isArray(room.battleEffects)) {
+    room.traps=[];room.trapDraft=null;
     room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
   }
   const current = room.battleEffects[playerIndex] || (room.battleEffects[playerIndex] = { effect: "", shield: false });
@@ -483,6 +493,7 @@ io.on("connection", (socket) => {
     room.holeIndex = 0;
     room.turnStates.clear();
     room.finishedThisHole.clear();
+    room.traps=[];room.trapDraft=null;
     room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
     if(mode === "kart") startKart(room);
     touch(room);
@@ -498,39 +509,50 @@ io.on("connection", (socket) => {
     if(!race||room.status!=='playing'||now<race.startAt)return;
     const r=race.states[socket.data.playerIndex];if(!r||r.finished||now-r.lastAt<30)return;
     const {x,y,angle,speed,t}=payload||{};
-    if(![x,y,angle,speed,t].every(Number.isFinite)||Math.abs(x)>6000||Math.abs(y)>6000||t<0||t>=1)return;
-    const budget=650*Math.min(.5,(now-r.lastAt)/1000)+35;
+    if(![x,y,angle,speed,t].every(Number.isFinite)||Math.abs(x)>(room.round.kart.worldBound||20000)||Math.abs(y)>(room.round.kart.worldBound||20000)||t<0||t>=1)return;
+    const previousRideState={x:r.x,y:r.y,rideId:r.rideId,rideU:r.rideU};
+    const budget=710*Math.min(.5,(now-r.lastAt)/1000)+35;
     if(Math.hypot(x-r.x,y-r.y)>budget&&!payload.rescue)return;
-    if(payload.rescue){const q=kartPoint(room.round.kart,r.t);Object.assign(r,q);r.speed=0;}else Object.assign(r,{x,y,angle,speed:Math.max(-85,Math.min(556.5,speed)),t});
+    if(payload.rescue){const q=kartPoint(room.round.kart,r.t);Object.assign(r,q);r.speed=0;}else Object.assign(r,{x,y,angle,speed:Math.max(-85,Math.min(r.catchupUntil>now?710:556.5,speed)),t});
+    if(r.launchReady){r.launchReady=false;r.speed=Math.max(180,r.speed);kartImpact(room,r,0,'PERFECT START');}
     const packetDt=Math.min(.15,(now-r.lastAt)/1000);r.lastAt=now;
     if(payload.drifting&&r.speed>90&&!(r.spinUntil>now)){r.driftStarted ||= now;}else{if(r.driftStarted&&now-r.driftStarted>=600){r.boostUntil=Math.max(r.boostUntil,now+(now-r.driftStarted>=1600?3000:1500));kartFlow(room,r,'drift',now);}r.driftStarted=0;}
     r.draft=KartTracks.drafting(r,race.states)?(r.draft||0)+packetDt:Math.max(0,(r.draft||0)-packetDt*2);
     if(r.draft>=1.5&&now>(r.draftReady||0)){r.boostUntil=Math.max(r.boostUntil,now+2000);r.draft=0;r.draftReady=now+5000;kartFlow(room,r,'draft',now);}
     const geometry=kartTrackCache.get(room.round.kart);
-    if(r.airUntil&&r.airUntil<=now){r.airUntil=0;if(!(r.spinUntil>now)&&KartTracks.roadClearance(geometry,r.x,r.y)<104){r.boostUntil=Math.max(r.boostUntil,now+1800);kartFlow(room,r,'jump',now);}}
-    const ramp=KartTracks.rampState(geometry,room.round.kart.jumps||[],r);if(ramp?.launch&&now>(r.jumpReady||0)){r.airUntil=now+2000;r.jumpReady=now+5000;}
+    const rideReward=KartTracks.validateRide(room.round.kart.stunts||[],r,previousRideState,payload.rideId,now,(()=>{const w=KartTracks.railWindow(room.round.kart.stunts||[],(now-race.startAt)/1000,room.round.kart.phase);return w.active&&w.id===payload.rideId;})());
+    if(rideReward){r.boostUntil=Math.max(r.boostUntil,now+rideReward);kartFlow(room,r,'ride',now);}
+    if(r.airUntil&&r.airUntil<=now){r.airUntil=0;if(!(r.spinUntil>now)&&KartTracks.roadClearance(geometry,r.x,r.y)<104){r.boostUntil=Math.max(r.boostUntil,now+(r.trickAt?3000:1800));kartFlow(room,r,'jump',now);}}
+    const ramp=KartTracks.rampState(geometry,room.round.kart.jumps||[],r);if(ramp?.launch&&now>(r.jumpReady||0)){r.trickAt=0;r.trickKind=-1;r.airUntil=now+2000;r.jumpReady=now+5000;}
 
     const seconds=(now-race.startAt)/1000;
     if(now/1000-(r.flowAt||0)>12)r.flowTypes=[];
     for(let i=0;i<8;i++){const gate=KartTracks.rushGate(geometry,room.round.kart,seconds,i);if(gate.active&&r.speed>130&&Math.hypot(r.x-gate.x,r.y-gate.y)<34&&r['rush'+i]!==gate.cycle){r['rush'+i]=gate.cycle;r.boostUntil=Math.max(r.boostUntil,now+1500);kartFlow(room,r,'gate',now);io.to(room.code).emit('kart:item',{index:r.index,item:'RUSH GATE'});}}
 
-    if(r.speed>120&&seconds>(r.nextFore||7+r.index*2)&&!(r.spinUntil>now)&&!(r.airUntil>now)&&KartTracks.canFore(geometry,r,race.foreShots,seconds,room.round.kart.courseLength)){r.nextFore=seconds+14;race.foreShots.push(KartTracks.foreShot(geometry,room.round.kart,r,seconds,room.round.kart.courseLength,++race.foreId));}
+    if(!(r.rideId>=0)&&r.speed>120&&seconds>(r.nextFore||7+r.index*2)&&!(r.spinUntil>now)&&!(r.airUntil>now)&&KartTracks.canFore(geometry,r,race.foreShots,seconds,room.round.kart.courseLength)){r.nextFore=seconds+14;race.foreShots.push(KartTracks.foreShot(geometry,room.round.kart,r,seconds,room.round.kart.courseLength,++race.foreId));}
     race.foreShots=race.foreShots.filter(s=>seconds-s.start<4).slice(-12);
-    for(const shot of race.foreShots){if(shot.results.includes(r.index))continue;const h=KartTracks.forePose(geometry,room.round.kart,shot,seconds),contact=r.airUntil>now?'':KartTracks.foreContact(h,r);if(contact){shot.results.push(r.index);if(contact==='hit')kartImpact(room,r,1.3,'GIANT GOLF BALL');else{r.boostUntil=Math.max(r.boostUntil,now+1800);kartFlow(room,r,'dodge',now);io.to(room.code).emit('kart:item',{index:r.index,item:'DODGE BOOST'});}}}
+    for(const shot of race.foreShots){if(shot.results.includes(r.index))continue;const h=KartTracks.forePose(geometry,room.round.kart,shot,seconds),contact=r.airUntil>now||r.rideId>=0?'':KartTracks.foreContact(h,r);if(contact){shot.results.push(r.index);if(contact==='hit')kartImpact(room,r,1.3,'GIANT GOLF BALL');else{r.boostUntil=Math.max(r.boostUntil,now+1800);kartFlow(room,r,'dodge',now);io.to(room.code).emit('kart:item',{index:r.index,item:'DODGE BOOST'});}}}
     for(let i=0;i<5;i++){const pad=kartPoint(room.round.kart,.1+i*.2,(i%2?1:-1)*35);if(now>(r.padReady||0)&&Math.hypot(r.x-pad.x,r.y-pad.y)<38){r.padReady=now+4000;r.boostUntil=Math.max(r.boostUntil,now+1600);}}
     kartContacts(room);
     const gate=kartPoint(room.round.kart,((r.gates+1)%4)/4);
     if(Math.hypot(r.x-gate.x,r.y-gate.y)<136){r.gates++;r.lap=Math.floor(r.gates/4);if(r.lap>=room.round.kart.laps){r.finished=true;race.finishOrder.push(r.index);}}
-    if(!r.item&&now>(r.pickupReady||0))for(let i=0;i<8;i++){if(race.boxes[i]>now)continue;const q=kartPoint(room.round.kart,(i+.5)/8,(i%3-1)*25);if(Math.hypot(r.x-q.x,r.y-q.y)<35){r.item=KartTracks.items[crypto.randomInt(KartTracks.items.length)];r.itemReadyAt=now+1500;r.pickupReady=now+12000;race.boxes[i]=now+18000;break;}}
-    for(const h of race.hazards)if(!(r.airUntil>now)&&h.owner!==r.index&&h.until>now&&Math.hypot(h.x-r.x,h.y-r.y)<45){kartImpact(room,r,2.2,'OIL SPINOUT');h.until=0;}
+    if(!r.item&&now>(r.pickupReady||0))for(let i=0;i<8;i++){if(race.boxes[i]>now)continue;const q=kartPoint(room.round.kart,(i+.5)/8,(i%3-1)*25);if(Math.hypot(r.x-q.x,r.y-q.y)<35){r.item=KartTracks.positionItem(r,race.states,()=>crypto.randomInt(1000000)/1000000);r.itemReadyAt=now+1500;r.pickupReady=now+12000;race.boxes[i]=now+18000;break;}}
+    for(const h of race.hazards)if(!(r.rideId>=0)&&!(r.airUntil>now)&&h.owner!==r.index&&h.until>now&&Math.hypot(h.x-r.x,h.y-r.y)<45){kartImpact(room,r,2.2,'OIL SPINOUT');h.until=0;}
     touch(room);
   });
+  socket.on('kart:launch',()=>{const room=rooms.get(socket.data.roomCode),race=room?.kart,r=race?.states[socket.data.playerIndex],left=(race?.startAt||0)-Date.now();if(r&&room.status==='playing'&&left>150&&left<650){r.launchReady=true;r.boostUntil=race.startAt+1500;}});
+  socket.on('kart:trick',()=>{const room=rooms.get(socket.data.roomCode),r=room?.kart?.states[socket.data.playerIndex],now=Date.now();if(!r||room.status!=='playing'||r.finished||(r.trickAt&&now-r.trickAt<180)||!(r.rideId>=0||(r.airUntil>now+800&&r.airUntil<now+1900)))return;r.trickAt=now;r.trickKind=((r.trickKind??-1)+1)%3;io.to(room.code).emit('kart:item',{index:r.index,item:['SPIN','FRONT FLIP','BACKFLIP'][r.trickKind]});});
   socket.on('kart:use',()=>{
     const room=rooms.get(socket.data.roomCode),race=room?.kart,now=Date.now();if(!race||now<race.startAt)return;
     const r=race.states[socket.data.playerIndex];if(!r||r.finished||!r.item||now<r.itemReadyAt)return;
-    const item=r.item;r.item='';
+    const item=KartTracks.usableItem(r,race.states,r.item);r.item='';
     if(item==='turbo')r.boostUntil=now+4000;
+    if(item==='catchup'){r.catchupUntil=now+5000;r.boostUntil=now+5000;}
     if(item==='shield')r.shieldUntil=now+8000;
+    if(item==='dash'){r.boostUntil=Math.max(r.boostUntil,now+2500);r.speed=Math.max(r.speed,500);kartImpact(room,r,0,'NITRO DASH');}
+    if(item==='bubble'){r.boostUntil=Math.max(r.boostUntil,now+2000);r.shieldUntil=Math.max(r.shieldUntil,now+6000);}
+    if(item==='pulse')for(const rival of race.states)if(rival!==r&&!rival.finished&&Math.hypot(rival.x-r.x,rival.y-r.y)<320&&!(rival.starUntil>now)){if(rival.shieldUntil>now)rival.shieldUntil=0;else rival.slowUntil=Math.max(rival.slowUntil||0,now+2500);}
+
     if(item==='storm')for(const rival of race.states)if(rival!==r&&!(rival.starUntil>now)){if(rival.shieldUntil>now)rival.shieldUntil=0;else rival.slowUntil=now+4000;}
     if(item==='star'){r.boostUntil=now+6000;r.shieldUntil=now+6000;r.starUntil=now+6000;}
     if(item==='repair'){r.repairAt=now;r.slowUntil=0;r.spinUntil=0;r.shieldUntil=Math.max(r.shieldUntil,now+2000);}
@@ -555,6 +577,15 @@ io.on("connection", (socket) => {
     socket.to(room.code).emit("shot:live", event);
   });
 
+  socket.on('battle:place',(payload,callback)=>{
+   const room=rooms.get(socket.data.roomCode),draft=room&&battleDraft(room);
+   if(!draft||room.activeIndex!==socket.data.playerIndex||draft.placed||payload?.key!==draft.key||!draft.choices.includes(payload.type))return acknowledge(callback,{ok:false,error:'This card is not available for your turn.'});
+   const {x,z}=payload;if(![x,z].every(Number.isFinite)||Math.abs(x)>5000||Math.abs(z)>5000)return acknowledge(callback,{ok:false,error:'Choose a point on the course.'});
+   room.traps=(room.traps||[]).filter(t=>t.hole===room.holeIndex);
+   if(room.traps.some(t=>Math.hypot(t.x-x,t.z-z)<34))return acknowledge(callback,{ok:false,error:'Leave space between traps.'});
+   room.traps.push({id:crypto.randomBytes(6).toString('hex'),hole:room.holeIndex,type:payload.type,x,z,radius:15,owner:room.activeIndex});room.traps=room.traps.slice(-16);draft.placed=true;touch(room);
+   const state=publicRoom(room);acknowledge(callback,{ok:true,room:state});io.to(room.code).emit('battle:state',state);
+  });
   socket.on("turn:submit", (payload, callback) => {
     const room = rooms.get(socket.data.roomCode);
     const playerIndex = socket.data.playerIndex;
@@ -564,6 +595,7 @@ io.on("connection", (socket) => {
     if (playerIndex !== room.activeIndex || Number(payload?.holeIndex) !== room.holeIndex) {
       return acknowledge(callback, { ok: false, error: "That is not the active turn." });
     }
+    if(room.round?.mode==='battle'&&!battleDraft(room)?.placed)return acknowledge(callback,{ok:false,error:'Place your trap card before taking a shot.'});
     const state = sanitizeTurnState(payload?.state);
     const battleResult = settleBattlePickup(room, playerIndex, state);
     room.turnStates.set(playerIndex, state);
@@ -607,6 +639,7 @@ io.on("connection", (socket) => {
     room.status = "playing";
     room.turnStates.clear();
     room.finishedThisHole.clear();
+    room.traps=[];room.trapDraft=null;
     room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
     touch(room);
     acknowledge(callback, { ok: true });

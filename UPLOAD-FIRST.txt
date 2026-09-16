@@ -1,3 +1,48 @@
+SKYLINE RAIL RALLY + TRAP CARD TOUR
+Replace public/index.html, server.js and kart-tracks.js together. Redeploy and refresh every player.
+KART: 9-14 storey towers replace small district buildings. Placement clearance and stable-foundation rules remain.
+Wall rides removed. One rail location is selected per 24-second cycle: 3-second warning, 18 seconds open, 3 seconds relocating. The next location differs. Riders already attached can finish even after entries close.
+Rails only accept a forward-facing approach before the start; progress stays forward, shortcuts remain shorter and lap checkpoints cannot be skipped. Minimap shows the active rail and countdown.
+New items: Nitro Dash (instant acceleration, 2.5s boost), Boost Bubble (2s boost, 6s shield), Shockwave (nearby rivals slowed 2.5s; shields block it). First-place Turbo conversion and last-place Super Turbo remain.
+POWER-UP TOUR: Three random trap cards before each turn, including the first. Select one, then click its course map to place. Bomb, mud, bumper and vortex traps replace collectible power-up gates.
+Traps affect everyone, once per trap per shot. Maximum 16 traps per hole; oldest placements are removed. Fairway placement UI keeps traps away from tee, cup, current ball and each other. Online server enforces active-player ownership, offered cards, one placement per turn and shared trap state.
+Phyphox polling, sensor recovery and swing calculations retain prior behavior. Power-Up Tour waits for a card placement before arming a shot.
+
+CITY SHORTCUT TOUR
+Replace public/index.html, server.js, and kart-tracks.js together. Redeploy Render and refresh ALL players.
+Circuits are 25% larger in horizontal dimensions. The longer circuits retain two-lap races.
+Rail and wall routes now cut across bends with smooth entry/exit tangents, rather than following the roadway. Routes must be at least 12% shorter including elevation, and must preserve lap checkpoints.
+Continuous ribbon surfaces replace disconnected wall slabs. Minimap follows the curved shortcuts.
+Low-poly city districts include 2-4 storey buildings, roof trim, windows and striped shop awnings. Geometry is batched by material.
+Structure rules: reserve roads, full stunt-route corridors and infield golf holes; maintain footprint spacing; reject sloped sites; anchor foundations to the highest sampled ground. No random building placements inside ride routes or merges.
+Controllers retain the prior recovery fixes; this change does not edit golf sensor polling or swing math.
+
+RAIL & WALL TOUR
+Replace public/index.html, server.js and kart-tracks.js together, redeploy, then refresh EVERY player's browser.
+Each circuit has two cyan rail grinds and two purple banked wall rides. Enter the glowing arch at speed; the kart follows the route and returns to normal steering at the exit.
+E cycles spin / front flip / backflip during the ride; split-screen Player 2 uses M. Completing a ride earns a boost; a trick earns a stronger boost.
+Colored shortcut lines appear on the minimap. The bottom instructions bar is removed.
+Cable pylons, glowing wall edges, flowers, grass and stones add detail with placement clearance checks.
+Online server validates route entry, progress and exit rewards. Golf/phyphox changes from the prior build are retained.
+
+TRICK TOUR + CONTROLLER RECOVERY
+Replace public/index.html, server.js, kart-tracks.js together; redeploy and refresh every player.
+E cycles Spin / Front Flip / Backflip while airborne. Split P2 uses M. C looks behind (P2 N). Tap W just before GO for a launch boost.
+Phyphox: slow/timed-out threshold requests fall back to latest-value mode. Sensor batches yield periodically and update routine HUD fields once per batch. Swing math and thresholds retained.
+Physical phone testing is required; if the slowdown persists send a new bug report from this build.
+
+KART STUNT TOUR
+Replace public/index.html, server.js and kart-tracks.js together. Redeploy and refresh all players.
+E: air trick. Split-screen Player 2: M. Cycle tricks during the jump; land on-road for an enhanced boost.
+Nearby-rival indicator and lightweight roadside lights/chevrons.
+First-place Turbo-only and last-place Super Turbo rules retained and server checked.
+
+POSITION-BASED POWER-UPS
+Replace public/index.html, server.js and kart-tracks.js together; redeploy and refresh all players.
+First place receives Turbo only. Last place receives five-second Super Turbo. Middle places receive mixed items.
+Taking the lead converts a held item into Turbo; server independently checks at use time.
+Super Turbo has a higher speed cap and stronger acceleration, with no attack effect.
+
 KART INFIELD TOUR
 Update public/index.html (and keep server.js and kart-tracks.js from this package), redeploy, refresh everyone.
 Golf-course infield with striped fairways, greens, bunkers, tees, cups and flags. Infield placement checks polygon interior and clearance from every road segment.
