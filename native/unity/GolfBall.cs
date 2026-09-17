@@ -1,2 +1,0 @@
-using UnityEngine;
-namespace GyroGolf.Native { [RequireComponent(typeof(Rigidbody))] public sealed class GolfBall:MonoBehaviour { Rigidbody body; public bool IsMoving=>body&&body.velocity.sqrMagnitude>.04f; void Awake(){body=GetComponent<Rigidbody>();body.mass=.045f;body.drag=.08f;body.angularDrag=.03f;body.interpolation=RigidbodyInterpolation.Interpolate;} public void Launch(Vector3 direction,float speed){body.velocity=Vector3.zero;body.angularVelocity=Vector3.zero;body.AddForce(direction.normalized*speed+Vector3.up*speed*.38f,ForceMode.VelocityChange);} } }

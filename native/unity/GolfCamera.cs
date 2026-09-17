@@ -1,2 +1,0 @@
-using UnityEngine;
-namespace GyroGolf.Native { public sealed class GolfCamera:MonoBehaviour { [SerializeField] Vector3 offset=new(0,8,-12); [SerializeField] float followSpeed=7; Transform target; public void Follow(Transform value)=>target=value; void LateUpdate(){if(!target)return;transform.position=Vector3.Lerp(transform.position,target.position+offset,1-Mathf.Exp(-followSpeed*Time.deltaTime));transform.LookAt(target.position+Vector3.up*.4f);} } }
