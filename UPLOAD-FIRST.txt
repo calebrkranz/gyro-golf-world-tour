@@ -1,3 +1,12 @@
+FAIRWAY SURVIVAL + ONLINE PODIUM / SPECTATOR UPDATE
+Replace public/index.html, server.js and kart-tracks.js together; redeploy and refresh all players.
+Power-Up Tour: off-fairway landings and rollouts return to the previous shot origin. The attempt counts; no extra reset penalty. Tee, green and fringe are safe. Ordinary golf is unchanged.
+Cards now differ: Boom Mine resets the shot; Glue Patch stops it dead; Rebound Bumper reverses travel; Launch Pad boosts forward with loft. New 3D models include a fused mine, glue puddle, spring bumper and illuminated launch platform, with activation flashes.
+Online golf ends with a podium and all-player placements, including ties and incomplete rounds. Online kart results update as remaining racers finish, then show final placements.
+Spectator motion uses sender timestamps with a 90ms interpolation buffer and at most 100ms extrapolation. Live updates drop rather than queue behind congestion. Direct channels skip queued sends. Shot sounds are relayed separately with ownership checks and duplicate/echo prevention.
+Kart districts now include street lamps, planters, benches and pit garages, using the existing structure-clearance rules and batched geometry.
+Phyphox polling and swing calculations retain the prior recovery fixes. Real-browser visual/audio and physical-phone testing is still needed.
+
 SKYLINE RAIL RALLY + TRAP CARD TOUR
 Replace public/index.html, server.js and kart-tracks.js together. Redeploy and refresh every player.
 KART: 9-14 storey towers replace small district buildings. Placement clearance and stable-foundation rules remain.

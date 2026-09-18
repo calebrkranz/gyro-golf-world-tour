@@ -93,7 +93,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   background:rgba(1,5,3,.58);padding:18px;backdrop-filter:blur(6px)
 }
 .overlay.show{display:flex}
-.overlayBox{
+.overlayBox{max-height:90vh;overflow:auto;
   width:min(430px,94vw);background:rgba(9,18,13,.94);border:1px solid var(--line);
   border-radius:22px;padding:22px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.35)
 }
@@ -274,7 +274,7 @@ label.message{display:block;margin-top:9px}
 
 
 <style id="v35-extra-style">
-.overlayBox{position:relative;overflow:hidden}
+.overlayBox{max-height:90vh;overflow:auto;position:relative;overflow:hidden}
 .overlayBox::before{
   content:"";position:absolute;inset:-50%;
   background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.08),transparent 18%);
@@ -6131,7 +6131,7 @@ window.GyroGolfTHREE=THREE;
     },
     battle:{
       id:'battle',icon:'🏁',name:'Power-Up Tour',short:'Power-Up',holes:3,
-      description:'Three extra-long Par 8 holes. Before every turn, choose one of three trap cards and place it on the fairway. Bombs, mud, bumpers and wind vortices affect every player. Local and online multiplayer.',
+      description:'Three extra-long Par 8 holes. Before every turn, choose one of three trap cards and place it on the fairway. Stay on the fairway or replay your shot. Mines reset, glue stops, bumpers reverse, and launch pads boost anyone who hits them. Tee, green and fringe are safe. Local and online multiplayer.',
       oneShot:false,requiresTwo:true
     },
     longhaul:{
@@ -9144,7 +9144,28 @@ window.GyroGolfTHREE=THREE;
       currentPlayerIndex===onlineSession.activeIndex;
   }
 
+  const remoteSnapshotBuffer=[];
+  let remoteClockOffset=null,onlineSoundSequence=0,remoteSoundPlayback=false;
+  const remoteSoundIds=new Set();
+  const onlineSoundNames=new Set(['whoosh','heavyHit','lightHit','splash','coin','birdiePlain','birdieGood','birdieNice','parVoice','eagleVoice','crowdAww','landing']);
+  function onlineBroadcastSound(name,volume=.5,rate=1,lie=''){
+    if(remoteSoundPlayback||!onlineSoundNames.has(name)||!onlineGameActive()||!onlineCanControlTurn()||!onlineSession.socket?.connected)return;
+    onlineSession.socket.emit('shot:sound',{holeIndex:currentHoleIndex,sequence:++onlineSoundSequence,name,volume,rate,lie});
+  }
+  function onlineReceiveSound(event){
+    if(!onlineGameActive()||event.playerIndex===onlineSession.playerIndex||event.holeIndex!==currentHoleIndex||!onlineSoundNames.has(event.name))return;
+    const key=event.playerIndex+':'+event.holeIndex+':'+event.sequence;if(remoteSoundIds.has(key))return;remoteSoundIds.add(key);if(remoteSoundIds.size>128)remoteSoundIds.delete(remoteSoundIds.values().next().value);
+    remoteSoundPlayback=true;try{if(event.name==='landing')playSurfaceLandingSound(event.lie,event.volume);else playPackagedOneShot(event.name,event.volume,event.rate);}finally{remoteSoundPlayback=false;}
+  }
+  function sampleRemoteSnapshot(now){
+    const samples=remoteSnapshotBuffer;if(!samples.length)return null;const target=now-(remoteClockOffset||0)-90;
+    while(samples.length>2&&samples[1].time<=target)samples.shift();const a=samples[0],b=samples[1]||a;
+    const u=a===b?0:clamp((target-a.time)/Math.max(1,b.time-a.time),0,1),last=target>=b.time?b:a;
+    const extra=target>b.time?Math.min(.1,(target-b.time)/1000):0;
+    return {position:{x:a.position.x+(b.position.x-a.position.x)*u+b.velocity.x*extra,y:a.position.y+(b.position.y-a.position.y)*u+b.velocity.y*extra,z:a.position.z+(b.position.z-a.position.z)*u+b.velocity.z*extra},velocity:b.velocity,swingDeg:dataAngleLerp(a.swingDeg,b.swingDeg,u),faceDeg:dataAngleLerp(a.faceDeg,b.faceDeg,u),kind:last.kind};
+  }
   function onlineResetRemoteLive(){
+    remoteSnapshotBuffer.length=0;remoteClockOffset=null;onlineRemoteLive.renderSample=null;
     onlineRemoteLive.active=false;
     onlineRemoteLive.kind='address';
     onlineRemoteLive.ballState='rest';
@@ -9304,6 +9325,7 @@ window.GyroGolfTHREE=THREE;
       playerIndex:onlineSession.playerIndex,
       holeIndex:currentHoleIndex,
       sequence:++onlineLiveSequence,
+      sentAt:now,
       kind:ballMoving?'ball':(swinging?'swing':'address'),
       ballState,
       swingPhase,
@@ -9316,7 +9338,7 @@ window.GyroGolfTHREE=THREE;
     const encoded=JSON.stringify(payload);
     let directSent=false;
     onlinePeers.forEach(peer=>{
-      if(peer.channel?.readyState!=='open') return;
+      if(peer.channel?.readyState!=='open'||peer.channel.bufferedAmount>16000) return;
       try{
         peer.channel.send(encoded);
         directSent=true;
@@ -9330,7 +9352,7 @@ window.GyroGolfTHREE=THREE;
       (force || !directSent || now-onlineLastSocketLiveEmitMs>=48)
     ){
       onlineLastSocketLiveEmitMs=now;
-      onlineSession.socket.emit('shot:live',payload);
+      onlineSession.socket.volatile.emit('shot:live',payload);
     }
   }
 
@@ -9382,6 +9404,11 @@ window.GyroGolfTHREE=THREE;
     );
     onlineRemoteLive.lastPacketMs=arrivedAt;
     onlineRemoteLive.transport=event.transport||'render-relay';
+    const time=Number.isFinite(event.sentAt)&&event.sentAt>0?event.sentAt:arrivedAt;
+    remoteClockOffset=remoteClockOffset===null?arrivedAt-time:Math.min(remoteClockOffset,arrivedAt-time);
+    remoteSnapshotBuffer.push({time,position:{x:onlineRemoteLive.targetPosition.x,y:onlineRemoteLive.targetPosition.y,z:onlineRemoteLive.targetPosition.z},velocity:{x:onlineRemoteLive.targetVelocity.x,y:onlineRemoteLive.targetVelocity.y,z:onlineRemoteLive.targetVelocity.z},swingDeg:nextSwingDeg,faceDeg:nextFaceDeg,kind:event.kind});
+    if(remoteSnapshotBuffer.length>32)remoteSnapshotBuffer.shift();
+
 
     const active=onlineSession.players[onlineSession.activeIndex];
     if(event.kind==='ball'){
@@ -9404,18 +9431,11 @@ window.GyroGolfTHREE=THREE;
 
   function onlineUpdateRemoteLive(dt){
     if(!onlineRemoteLive.active || onlineCanControlTurn()) return;
-    if(onlineRemoteLive.kind!=='ball') return;
-    const age=clamp((performance.now()-onlineRemoteLive.lastPacketMs)/1000,0,.14);
-    const alpha=1-Math.exp(-dt*24);
-    onlineRemoteLive.predictedPosition
-      .copy(onlineRemoteLive.targetPosition)
-      .addScaledVector(onlineRemoteLive.targetVelocity,age);
-    if(ball.position.distanceTo(onlineRemoteLive.predictedPosition)>28){
-      ball.position.copy(onlineRemoteLive.predictedPosition);
-    }else{
-      ball.position.lerp(onlineRemoteLive.predictedPosition,alpha);
-    }
-    ballVel.lerp(onlineRemoteLive.targetVelocity,alpha);
+    const sample=sampleRemoteSnapshot(performance.now());onlineRemoteLive.renderSample=sample;
+    if(!sample||sample.kind!=='ball')return;
+    onlineRemoteLive.predictedPosition.set(sample.position.x,sample.position.y,sample.position.z);
+    ball.position.copy(onlineRemoteLive.predictedPosition);
+    ballVel.set(sample.velocity.x,sample.velocity.y,sample.velocity.z);
     ballPos.copy(ball.position);
     updateLiveYardCounter();
   }
@@ -9798,6 +9818,7 @@ window.GyroGolfTHREE=THREE;
   }
 
   function onlineShowHoleComplete(delay=0){
+    $('podiumBoard').classList.remove('show');
     holeComplete=true;
     ball.visible=false;
     cancelAutoArm();
@@ -9809,6 +9830,8 @@ window.GyroGolfTHREE=THREE;
     }).join(' · ');
     $('overlayTitle').textContent=finalHole?'ONLINE ROUND COMPLETE':'ONLINE HOLE COMPLETE';
     $('overlayText').textContent=`Hole ${currentHoleIndex+1}: ${currentHole.yards} yd · Par ${currentHole.par} · ${rows}`;
+    if(finalHole){const ranked=players.map(player=>{const complete=HOLES.every((_,i)=>typeof player.scores[i]==='number'&&Number.isFinite(player.scores[i]));return {name:player.name,finished:complete,score:complete?HOLES.reduce((sum,_,i)=>sum+player.scores[i],0):Infinity};}).sort((a,b)=>a.score-b.score);const entries=ranked.map(e=>({...e,rank:ranked.findIndex(p=>p.score===e.score)+1,label:e.finished?e.score+' strokes':'Did not finish'}));window.renderMatchPodium?.($('overlayText'),entries,'FINAL PLACEMENTS');}
+
     const host=onlineSession.playerIndex===onlineSession.hostIndex;
     $('replay').textContent=host?(finalHole?'Return to Menu':'Next Hole'):'Waiting for Host';
     $('replay').disabled=!host;
@@ -9994,6 +10017,7 @@ window.GyroGolfTHREE=THREE;
         onlineSetStatus('Online server disconnected. Reconnecting automatically…',true);
       }
     });
+    socket.on('shot:sound',onlineReceiveSound);
     socket.on('battle:state',room=>onlineApplyRoomState(room));
     socket.on('kart:snapshot',data=>window.receiveKartSnapshot?.(data));
     socket.on('kart:item',data=>window.receiveKartItem?.(data));
@@ -13633,6 +13657,7 @@ window.GyroGolfTHREE=THREE;
   }
 
   function playPackagedOneShot(name,volume=.5,rate=1){
+    onlineBroadcastSound(name,volume,rate);
     if(!impactSoundEnabled || !packagedAudioAvailable(name)) return false;
     try{
       const audio=new Audio(PACKAGED_AUDIO[name]);
@@ -21499,6 +21524,7 @@ window.GyroGolfTHREE=THREE;
         -40,
         40
       );
+      if(onlineRemoteLive.renderSample)remoteSwingTarget=onlineRemoteLive.renderSample.swingDeg;
       const alpha=1-Math.exp(-dt*36);
       visualSwingDeg=dataAngleLerp(
         visualSwingDeg,
@@ -21507,7 +21533,7 @@ window.GyroGolfTHREE=THREE;
       );
       visualFaceDeg=dataAngleLerp(
         visualFaceDeg,
-        remoteFaceTarget,
+        onlineRemoteLive.renderSample?.faceDeg??remoteFaceTarget,
         alpha
       );
       swingPhase=onlineRemoteLive.swingPhase;
@@ -27870,6 +27896,7 @@ window.GyroGolfTHREE=THREE;
   }
 
   function playSurfaceLandingSound(lie,intensity=1){
+    if(lie!=='Water')onlineBroadcastSound('landing',intensity,1,lie);
     const k=clamp(intensity,.30,1.40);
 
     if(
@@ -30535,6 +30562,8 @@ window.GyroGolfTHREE=THREE;
     }
   }
 
+  function battleLandingResetNeeded(lie){return currentGameModeId==='battle'&&!['Fairway','Green','Fringe','Tee'].includes(lie);}
+
   function finishBall(){
     if(currentGameModeId==='battle' && battleTurnEffect){
       battleTurnEffectConsumed=true;
@@ -30592,7 +30621,12 @@ window.GyroGolfTHREE=THREE;
     const abs=Math.abs(horizontalDelta);
     lastShape=abs<4?'Straight':abs<12?(horizontalDelta>0?'Fade':'Draw'):(horizontalDelta>0?'Slice':'Hook');
 
-    if(waterContactConfirmed || canyonContactConfirmed){
+    if(currentGameModeId==='battle'&&(battleTrapReturn||waterContactConfirmed||canyonContactConfirmed||battleLandingResetNeeded(challengeLanding.lie))){
+      const reason=battleTrapReturn?'BOOM MINE':'OFF FAIRWAY';battleTrapReturn=false;
+      saveLastMissTrail(challengeLanding,reason);resetBallTrail();ballVel.set(0,0,0);ballPos.copy(shotStart);ballPos.y=terrainBallYAt(ballPos.x,ballPos.z);ball.position.copy(ballPos);lastShotText=reason+' · RETRY';lastShape='Reset';
+      $('lastShot').textContent=reason+': back to your shot’s starting spot. The stroke counts; tee and green are safe.';
+      waterContactConfirmed=false;canyonContactConfirmed=false;showCelebrationBanner(reason+' · SHOT RESET',1300);
+    }else if(waterContactConfirmed || canyonContactConfirmed){
       const hazardName=
         canyonContactConfirmed
           ? 'Canyon'
@@ -31637,7 +31671,9 @@ window.GyroGolfTHREE=THREE;
   }
 
 
-  const TRAP_CARDS={bomb:{name:'BOOM MINE',icon:'💣',color:0xf06a48,description:'A wide blast launches a ball off its line.'},mud:{name:'STICKY SWAMP',icon:'🟤',color:0x765031,description:'A broad mud patch drains most of a ball’s speed.'},bumper:{name:'MEGA BUMPER',icon:'🔴',color:0xdb579b,description:'A huge bumper knocks a ball sideways and upward.'},gust:{name:'WIND VORTEX',icon:'🌪',color:0x55dce1,description:'A swirling zone blows a ball sharply sideways.'}};
+  const TRAP_CARDS={bomb:{name:'BOOM MINE',icon:'💣',color:0xf06a48,description:'Ends the shot and sends the ball back to its starting spot.'},mud:{name:'GLUE PATCH',icon:'🟤',color:0x765031,description:'Catches the ball and stops it dead right here.'},bumper:{name:'REBOUND BUMPER',icon:'🔴',color:0xdb579b,description:'Reverses the ball’s direction, sending it back toward you.'},gust:{name:'LAUNCH PAD',icon:'🚀',color:0x55de91,description:'A useful boost: launches the ball forward over other traps.'}};
+  let battleTrapReturn=false;
+  const trapEffectTimes=new Map();
   let trapPanel=null,trapCanvas=null,trapMessage=null,trapSelected='',trapPanelKey='',trapDrawTransform=null,trapUIAt=0,trapVisualKey='',trapVisualGroup=null,trapLocalRound=null;
   const trapLocalDrafts=new Map(),trapHitKeys=new Set();let localCourseTraps=[];
   function trapDraftData(){
@@ -31652,7 +31688,7 @@ window.GyroGolfTHREE=THREE;
   function courseTraps(){return (onlineGameActive()?onlineSession.traps||[]:localCourseTraps).filter(t=>t.hole===currentHoleIndex);}
   function makeTrapPanel(){
    trapPanel=document.createElement('div');trapPanel.id='trapCardPanel';trapPanel.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:250;background:#102824f5;color:#f5fff7;padding:18px;border:2px solid #8edea4;border-radius:18px;width:min(560px,94vw);max-height:92vh;overflow:auto;box-shadow:0 15px 65px #0009;font-family:system-ui';
-   trapPanel.innerHTML='<b style="font-size:23px">PICK YOUR TRAP</b><p>Choose one of three cards, then click the course to place it. Traps affect everyone.</p><div id="trapCardChoices" style="display:flex;gap:8px"></div><p id="trapCardMessage" aria-live="polite"></p><canvas id="trapPlacementMap" width="500" height="320" style="display:block;width:100%;height:auto;background:#b7d6a2;border-radius:12px;cursor:crosshair"></canvas>';
+   trapPanel.innerHTML='<b style="font-size:23px">PICK YOUR TRAP</b><p>Choose one of three cards, then click the course to place it. Traps affect everyone. Off-fairway shots reset; tee, green and fringe are safe.</p><div id="trapCardChoices" style="display:flex;gap:8px"></div><p id="trapCardMessage" aria-live="polite"></p><canvas id="trapPlacementMap" width="500" height="320" style="display:block;width:100%;height:auto;background:#b7d6a2;border-radius:12px;cursor:crosshair"></canvas>';
    document.body.appendChild(trapPanel);trapCanvas=$('trapPlacementMap');trapMessage=$('trapCardMessage');trapCanvas.addEventListener('click',placeDraftTrap);
   }
   function drawTrapPlacementMap(){
@@ -31672,12 +31708,43 @@ window.GyroGolfTHREE=THREE;
    else{localCourseTraps=courseTraps();localCourseTraps.push({id:draft.key,hole:currentHoleIndex,type:trapSelected,x,z,radius:15,owner:currentPlayerIndex});localCourseTraps=localCourseTraps.slice(-16);draft.placed=true;complete();}
   }
   function updateTrapDraft(now){
+   if(trapVisualGroup?.visible)for(const group of trapVisualGroup.children){if(group.userData.pulse)group.userData.pulse.scale.setScalar(1+Math.sin(now*.012)*.2);const age=now-(trapEffectTimes.get(group.userData.trapId)||-10000),flash=group.userData.flash;if(flash){flash.material.opacity=age<650?1-age/650:0;flash.scale.setScalar(1+Math.min(1,age/650)*1.5);}}
    if(now-trapUIAt<180)return;trapUIAt=now;
    const enabled=currentGameModeId==='battle'&&gameStarted&&!window.gyroKartActive;if(!enabled){if(trapPanel)trapPanel.style.display='none';if(trapVisualGroup)trapVisualGroup.visible=false;return;}
    const traps=courseTraps(),key=currentHoleIndex+'|'+traps.map(t=>t.id).join(',');
    if(!trapVisualGroup){trapVisualGroup=new THREE.Group();scene.add(trapVisualGroup);}trapVisualGroup.visible=true;
-   if(key!==trapVisualKey){trapVisualKey=key;trapVisualGroup.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose();});trapVisualGroup.clear();for(const t of traps){const group=new THREE.Group(),color=TRAP_CARDS[t.type].color;group.position.set(t.x,terrainSurfaceYAt(t.x,t.z)+.2,t.z);const ring=new THREE.Mesh(new THREE.TorusGeometry(t.radius,.7,6,36),new THREE.MeshBasicMaterial({color}));ring.rotation.x=Math.PI/2;group.add(ring);
-    const body=new THREE.Mesh(t.type==='mud'?new THREE.CylinderGeometry(14,14,.5,24):t.type==='gust'?new THREE.TorusGeometry(8,2,6,18):new THREE.SphereGeometry(t.type==='bomb'?4:7,12,8),new THREE.MeshStandardMaterial({color,roughness:.65}));body.position.y=t.type==='mud'?.2:5;group.add(body);trapVisualGroup.add(group);}}
+   if(key!==trapVisualKey){trapVisualKey=key;trapVisualGroup.traverse(o=>{o.geometry?.dispose();if(o.material)o.material.dispose();});trapVisualGroup.clear();for(const t of traps){
+    const group=new THREE.Group(),color=TRAP_CARDS[t.type].color;group.userData.trapId=t.id;group.position.set(t.x,terrainSurfaceYAt(t.x,t.z)+.25,t.z);
+    const material=(c,glow=false)=>new THREE.MeshStandardMaterial({color:c,roughness:.55,metalness:.25,emissive:glow?c:0,emissiveIntensity:glow?.6:0});
+    const add=(geo,mat,x=0,y=0,z=0)=>{const mesh=new THREE.Mesh(geo,mat);mesh.position.set(x,y,z);group.add(mesh);return mesh;};
+    const ring=add(new THREE.TorusGeometry(t.radius,.45,6,40),material(color,true));ring.rotation.x=Math.PI/2;
+    if(t.type==='bomb'){
+     add(new THREE.CylinderGeometry(7,8,1.2,12),material(0x242934),0,.6,0);
+     for(let i=0;i<8;i++){const a=i*Math.PI/4,strip=add(new THREE.BoxGeometry(2,.3,4),material(0xffd44e),Math.cos(a)*6,1.4,Math.sin(a)*6);strip.rotation.y=-a;}
+     add(new THREE.SphereGeometry(4.6,16,10),material(0x252738),0,5.4,0);
+     add(new THREE.TorusGeometry(4.5,.5,6,20),material(0xe74e43),0,5.4,0).rotation.x=Math.PI/2;
+     add(new THREE.CylinderGeometry(.5,.5,3,6),material(0xbf9f63),0,10.6,0);
+     group.userData.pulse=add(new THREE.SphereGeometry(1.4,8,6),material(0xff8b35,true),0,12.2,0);
+    }else if(t.type==='mud'){
+     add(new THREE.CylinderGeometry(14.5,15,.55,32),material(0x495422),0,.1,0);
+     for(let i=0;i<9;i++){const a=i*2.4,r=3+i%3*3,blob=add(new THREE.SphereGeometry(2.5+i%2,8,6),material(i%2?0x93ad39:0x647c24),Math.cos(a)*r,.45,Math.sin(a)*r);blob.scale.y=.25;}
+     for(const x of [-10,10]){add(new THREE.CylinderGeometry(.5,.5,7,6),material(0x6c4c2b),x,3.5,0);add(new THREE.BoxGeometry(5,3,.5),material(0xf7dd55),x,7,0);}
+    }else if(t.type==='bumper'){
+     add(new THREE.CylinderGeometry(7,9,1.5,16),material(0x263448),0,.8,0);
+     for(let i=0;i<5;i++)add(new THREE.TorusGeometry(3.8,.5,6,18),material(0xc7d9e1),0,2+i*1.2,0).rotation.x=Math.PI/2;
+     add(new THREE.CylinderGeometry(9,8,2.5,24),material(0xeb4f83),0,9,0);
+     add(new THREE.CylinderGeometry(6,6,.2,24),material(0xfff1da),0,10.35,0);
+     add(new THREE.CylinderGeometry(3,3,.25,20),material(0xeb4f83,true),0,10.55,0);
+    }else{
+     const ramp=add(new THREE.BoxGeometry(20,1.7,25),material(0x254b62),0,2,0);ramp.rotation.x=-.17;
+     for(const x of [-9,9])add(new THREE.BoxGeometry(1,1,25),material(0x5fffb5,true),x,3,0);
+     for(let j=0;j<3;j++)for(const side of [-1,1]){const arrow=add(new THREE.BoxGeometry(7,.5,1.5),material(0xe5ff87,true),side*2.6,3.3,-7+j*6);arrow.rotation.y=side*.6;}
+     const next=sampleRoutePolyline(currentHole.route,4).reduce((best,v)=>Math.hypot(v.x-t.x,v.z-t.z)<Math.hypot(best.x-t.x,best.z-t.z)?v:best,currentHole.route[0]);
+     group.rotation.y=Math.atan2(next.x-t.x,next.z-t.z);
+    }
+    const flash=add(new THREE.TorusGeometry(10,1,8,32),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0}));flash.rotation.x=Math.PI/2;flash.position.y=2;group.userData.flash=flash;trapVisualGroup.add(group);
+   }}
+
    const draft=trapDraftData(),show=draft&&!draft.placed&&ballState==='rest'&&!holeComplete;if(!show){if(trapPanel)trapPanel.style.display='none';return;}if(!trapPanel)makeTrapPanel();trapPanel.style.display='block';
    if(trapPanelKey!==draft.key){trapPanelKey=draft.key;trapSelected='';const holder=$('trapCardChoices');holder.replaceChildren();for(const type of draft.choices){const c=TRAP_CARDS[type],button=document.createElement('button');button.style.cssText='flex:1;padding:12px 7px;border:2px solid #8ab394;border-radius:12px;background:#e9f3d9;color:#153021;cursor:pointer';button.innerHTML='<span style="font-size:30px">'+c.icon+'</span><br><b>'+c.name+'</b><br><small>'+c.description+'</small>';button.onclick=()=>{trapSelected=type;for(const other of holder.children)other.style.borderColor='#8ab394';button.style.borderColor='#e9b02d';trapMessage.textContent='Now click the map to place '+c.name+'.';};holder.appendChild(button);}trapMessage.textContent='Select a card. You get a new hand before your next turn.';drawTrapPlacementMap();}
   }
@@ -31685,8 +31752,13 @@ window.GyroGolfTHREE=THREE;
    if(currentGameModeId!=='battle'||!onlineCanControlTurn())return;
    for(const t of courseTraps()){const key=currentHoleIndex+':'+currentPlayerIndex+':'+strokes+':'+t.id;if(trapHitKeys.has(key))continue;const dx=b.x-a.x,dz=b.z-a.z,den=dx*dx+dz*dz,u=den?clamp(((t.x-a.x)*dx+(t.z-a.z)*dz)/den,0,1):0,qx=a.x+dx*u,qz=a.z+dz*u,qy=a.y+(b.y-a.y)*u;
     if(Math.hypot(qx-t.x,qz-t.z)>t.radius||qy>terrainSurfaceYAt(t.x,t.z)+12)continue;trapHitKeys.add(key);
-    if(t.type==='mud'){ballVel.x*=.25;ballVel.z*=.25;}else{const speed=Math.hypot(ballVel.x,ballVel.z)||1,rx=-ballVel.z/speed,rz=ballVel.x/speed;ballVel.x+=rx*(t.type==='gust'?32:20);ballVel.z+=rz*(t.type==='gust'?32:20);if(t.type!=='gust'){ballVel.y=Math.max(ballVel.y,t.type==='bomb'?24:18);ball.position.y=Math.max(ball.position.y,terrainBallYAt(ball.position.x,ball.position.z)+1);ballState='flight';}}
-    playPackagedOneShot('heavyHit',.7,1);showCelebrationBanner(TRAP_CARDS[t.type].name+'!',850);
+    trapEffectTimes.set(t.id,performance.now());
+    playPackagedOneShot(t.type==='gust'?'whoosh':'heavyHit',.7,1);showCelebrationBanner(TRAP_CARDS[t.type].name+'!',850);
+    if(t.type==='bomb'||t.type==='mud'){battleTrapReturn=t.type==='bomb';ball.position.set(qx,terrainBallYAt(qx,qz),qz);ballVel.set(0,0,0);finishBall();return;}
+    if(t.type==='bumper'){ballVel.x*=-.85;ballVel.z*=-.85;ballVel.y=4;}
+    else{const speed=Math.hypot(ballVel.x,ballVel.z)||1,mult=Math.max(1.5,35/speed);ballVel.x*=mult;ballVel.z*=mult;ballVel.y=Math.max(ballVel.y,18);}
+    ball.position.y=Math.max(ball.position.y,terrainBallYAt(ball.position.x,ball.position.z)+1);ballState='flight';
+
    }
   }
   function collectBattlePickupAlongSegment(a,b){
@@ -31819,6 +31891,7 @@ window.GyroGolfTHREE=THREE;
       ball.position.addScaledVector(ballVel,dt);
       collectCoinsAlongSegment(previousFlightPos,ball.position);
       applyDraftTraps(previousFlightPos,ball.position);
+      if(ballState==='rest')return;
       captureShotGhostPoint();
       ball.rotateX(horizSpeed*dt*.25);
 
@@ -31922,6 +31995,8 @@ window.GyroGolfTHREE=THREE;
           finishBall();
           return;
         }
+
+        if(battleLandingResetNeeded(lie)){ballPos.copy(ball.position);finishBall();return;}
 
         if(
           modeRuleActive('bounce') &&
@@ -32169,7 +32244,8 @@ window.GyroGolfTHREE=THREE;
       ball.position.y=terrainBallYAt(ball.position.x,ball.position.z);
       collectCoinsAlongSegment(previousPos,ball.position);
       applyDraftTraps(previousPos,ball.position);
-      if(ballState==='flight')return;
+      if(ballState==='flight'||ballState==='rest')return;
+      if(battleLandingResetNeeded(getLie(ball.position))){finishBall();return;}
       captureShotGhostPoint();
       updateLiveYardCounter();
       ball.rotateX(speed*dt*.35);
@@ -34892,6 +34968,12 @@ window.GyroGolfTHREE=THREE;
   // This must route through the room-aware dispatcher. Calling
   // beginGameFromStart directly silently created a local pass-and-play match
   // even while the browser appeared to be inside an online room.
+  window.renderMatchPodium=(container,entries,heading)=>{
+    container.replaceChildren();const title=document.createElement('h3');title.textContent=heading;title.style.cssText='font-size:22px;color:#ffe897;margin:8px';container.appendChild(title);
+    const stage=document.createElement('div');stage.style.cssText='display:flex;align-items:flex-end;justify-content:center;gap:8px;min-height:195px;padding:12px 4px;background:radial-gradient(ellipse at bottom,#53796a66,transparent);';
+    const winners=entries.filter(e=>e.finished!==false&&e.rank<=3);for(const e of [winners[1],winners[0],winners[2]].filter(Boolean)){const box=document.createElement('div');box.style.cssText='flex:1;max-width:150px;min-width:0;text-align:center;';const avatar=document.createElement('div');avatar.textContent=e.rank===1?'🏆':e.rank===2?'🥈':'🥉';avatar.style.cssText='font-size:40px;filter:drop-shadow(0 3px 5px #0008)';box.appendChild(avatar);const name=document.createElement('strong');name.textContent=e.name;name.style.cssText='display:block;overflow-wrap:anywhere;color:#fff;padding:5px';box.appendChild(name);const block=document.createElement('div');block.style.cssText='border-radius:9px 9px 0 0;padding:10px 4px;color:#162621;box-shadow:inset 0 1px 0 #fff8;background:'+(['','#f6d66a','#c6d9e3','#d6a574'][Math.min(3,e.rank)])+';height:'+(e.rank===1?100:e.rank===2?72:50)+'px';block.textContent='#'+e.rank+' · '+e.label;box.appendChild(block);stage.appendChild(box);}container.appendChild(stage);
+    for(const e of entries){const row=document.createElement('div');row.style.cssText='display:flex;justify-content:space-between;gap:12px;padding:8px;border-bottom:1px solid #ffffff22;color:#eef8ef';const name=document.createElement('span'),score=document.createElement('b');name.textContent=(e.finished===false?'—':'#'+e.rank)+'  '+e.name;score.textContent=e.label;row.append(name,score);container.appendChild(row);}
+  };
   window.gyroKartBridge={loop:name=>makePackagedLoop(name),sound:(name,volume=.45)=>playPackagedOneShot(name,volume,1),cheer:()=>{if(impactSoundEnabled)playCrowdCheer(1);},looks:()=>[...$('startNames').querySelectorAll('.startPlayerRow')].map((row,index)=>startRowLook(row,index)),stopMusic:()=>stopOpeningMusic(false),resumeMusic:startOpeningMusic,audioAllowed:()=>impactSoundEnabled,themes:COURSE_BIOMES,inRoom:onlineInRoom,launch:()=>{selectStartGameMode('kart');onlineStartRequested();},leave:()=>onlineLeaveRoom(true)};
   $('startGameBtn').addEventListener('click',()=>{if(startGameModeId==='kart'&&!onlineInRoom()){window.openLocalKart?.();return;}onlineStartRequested();});
 
@@ -35121,14 +35203,14 @@ window.GyroGolfTHREE=THREE;
 </script>
 <style>
 #kartCountdown{position:absolute;inset:24% 0 auto;text-align:center;pointer-events:none;font:1000 clamp(90px,18vw,230px)/1 system-ui;color:#fff6ac;-webkit-text-stroke:3px #153743;text-shadow:0 12px 0 #142a3b,0 0 70px #ffe67a88;z-index:8;transform:scale(1);transition:transform .12s} .kartSpeed{position:absolute;top:100px;left:20px;white-space:pre-line;background:#10212de8;border:2px solid #8be8ff;border-radius:20px;padding:16px;min-width:100px;font:900 20px/1.5 system-ui;pointer-events:none}#kartSpeed1{left:calc(50% + 20px)}#kartRally .kartSpeed{width:152px;min-width:0;padding:10px;font-size:12px;top:92px}#kartRally .speedDial{width:116px;height:100px}#kartRally .speedValue{top:36px;font-size:27px}#kartRally .speedUnit{top:64px}#kartRally .speedNeedle{height:38px}#kartRally .kartStatus{font-size:11px;line-height:1.6;white-space:pre-line;text-align:center}#kartHud{max-width:calc(100vw - 220px);font-size:13px}#kartOptions{justify-content:center}#kartOptions select{padding:10px;border-radius:8px;background:#233c4c;color:white}.kartItemSlot{position:absolute;left:22px;bottom:82px;width:min(290px,40vw);box-sizing:border-box;padding:16px 18px;border:2px solid #ffdb63;border-radius:18px;background:#10212df2;box-shadow:0 6px 24px #0008;white-space:pre-line;font:700 15px/1.5 system-ui;pointer-events:none}.kartItemSlot:first-line{font-size:21px;color:#ffe37d}#kartItem1{left:calc(50% + 22px)}
-#kartRally{position:fixed;inset:0;z-index:10000;background:#12232c;color:#fff;font:600 15px system-ui;display:none}#kartRally.open{display:block}#kartCanvas{width:100%;height:100%;display:block}#kartRally .kartTop{position:absolute;top:18px;left:18px;right:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none}#kartRally button{pointer-events:auto;border:0;border-radius:12px;padding:12px 18px;background:#ffdc64;color:#142027;font-weight:900;cursor:pointer}#kartHud{padding:14px 20px;background:#10212deb;border:1px solid #81d6e5;border-radius:16px;box-shadow:0 6px 24px #0005}#kartHelp{display:none!important;position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:#10212de8;padding:12px 20px;border-radius:12px;text-align:center;max-width:90%;width:max-content}#kartResult{position:absolute;inset:25% 12%;background:#10212df5;border:2px solid #ffdc64;border-radius:28px;text-align:center;align-content:center;display:none}#kartResult h2{font-size:38px;margin:10px}#kartResult p{font-size:18px}#kartToast{position:absolute;left:50%;top:110px;transform:translateX(-50%);font-size:24px;font-weight:900;text-shadow:0 2px 8px #000;text-align:center}
+#kartRally{position:fixed;inset:0;z-index:10000;background:#12232c;color:#fff;font:600 15px system-ui;display:none}#kartRally.open{display:block}#kartCanvas{width:100%;height:100%;display:block}#kartRally .kartTop{position:absolute;top:18px;left:18px;right:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none}#kartRally button{pointer-events:auto;border:0;border-radius:12px;padding:12px 18px;background:#ffdc64;color:#142027;font-weight:900;cursor:pointer}#kartHud{padding:14px 20px;background:#10212deb;border:1px solid #81d6e5;border-radius:16px;box-shadow:0 6px 24px #0005}#kartHelp{display:none!important;position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:#10212de8;padding:12px 20px;border-radius:12px;text-align:center;max-width:90%;width:max-content}#kartResult{max-height:86vh;overflow:auto;position:absolute;inset:25% 12%;background:#10212df5;border:2px solid #ffdc64;border-radius:28px;text-align:center;align-content:center;display:none}#kartResult h2{font-size:38px;margin:10px}#kartResult p{font-size:18px}#kartToast{position:absolute;left:50%;top:110px;transform:translateX(-50%);font-size:24px;font-weight:900;text-shadow:0 2px 8px #000;text-align:center}
 #battlePowerStatus{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:#11212eee;color:#fff;border:2px solid #ffd960;border-radius:15px;padding:10px 18px;z-index:45;pointer-events:none;font:800 13px system-ui;display:none}
 </style>
 <div id="battlePowerStatus" role="status"></div>
 <section id="kartRally" aria-label="Kart Rally race">
 <canvas id="kartCanvas"></canvas><div id="kartSpeed0" class="kartSpeed speedometerCard"><div class="speedometerTitle">KART SPEED</div><div class="speedDial"><div id="kartNeedle0" class="speedNeedle"></div><div id="kartValue0" class="speedValue">0</div><div class="speedUnit">MPH</div></div><div id="kartStatus0" class="kartStatus"></div></div><div id="kartSpeed1" class="kartSpeed speedometerCard"><div class="speedometerTitle">KART SPEED</div><div class="speedDial"><div id="kartNeedle1" class="speedNeedle"></div><div id="kartValue1" class="speedValue">0</div><div class="speedUnit">MPH</div></div><div id="kartStatus1" class="kartStatus"></div></div><div id="kartItem0" class="kartItemSlot"></div><div id="kartItem1" class="kartItemSlot"></div><canvas id="kartMiniMap" width="240" height="190" aria-label="Live circuit minimap" style="position:absolute;right:18px;top:86px;width:min(240px,24vw);height:auto;background:#10212de8;border:2px solid #cce7e3;border-radius:14px"></canvas><div class="kartTop"><div id="kartHud"></div><button id="kartExit">Return to golf menu</button></div>
 <div id="kartCountdown" aria-live="polite"></div><div id="kartToast"></div><div id="kartHelp">P1: WASD · Space item · Left Shift drift · E cycle tricks · C look back | Chain 3 skills: drift, draft, dodge, gate, jump | P2: arrows · Enter item · Right Shift drift · M cycle tricks · N look back | R / rescue</div>
-<div id="kartResult"><h2 id="kartResultTitle"></h2><p id="kartResultText"></p><div id="kartOptions" style="display:flex;flex-wrap:wrap;gap:12px;padding:12px;margin:8px 0;border:1px solid #8bb29c;border-radius:12px"><label>Kart circuit <select id="kartTrackSelect"><option value="random">Random reference circuit</option></select></label><label>Kart theme <select id="kartThemeSelect"><option value="auto">Random course theme</option></select></label></div><button id="kartOnlineStart" style="display:none">Start room race</button><button id="kartSolo">Solo + AI</button> <button id="kartSplit">Local split-screen</button> <button id="kartAgain">New random circuit</button></div>
+<div id="kartResult"><h2 id="kartResultTitle"></h2><div id="kartResultText"></div><div id="kartOptions" style="display:flex;flex-wrap:wrap;gap:12px;padding:12px;margin:8px 0;border:1px solid #8bb29c;border-radius:12px"><label>Kart circuit <select id="kartTrackSelect"><option value="random">Random reference circuit</option></select></label><label>Kart theme <select id="kartThemeSelect"><option value="auto">Random course theme</option></select></label></div><button id="kartOnlineStart" style="display:none">Start room race</button><button id="kartSolo">Solo + AI</button> <button id="kartSplit">Local split-screen</button> <button id="kartAgain">New random circuit</button></div>
 </section>
 <script>
 // Shared deterministic circuit geometry for client rendering and server rules.
@@ -35323,7 +35405,7 @@ window.GyroGolfTHREE=THREE;
  }
  function airTrick(index=0){const r=racers[index];if(!r||paused||finished||(!r.ride&&(r.air<.8||r.air>1.9)))return;if(net){net.emit('kart:trick');return;}r.tricked=true;r.trickKind=((r.trickKind??-1)+1)%3;r.trickAge=0;announce(['SPIN','FRONT FLIP','BACKFLIP'][r.trickKind]+'! STICK THE LANDING');kartSound('boost');}
  function rescue(index=0){const p=racers[index],n=nearest(p.x,p.y),q=point(n.t);Object.assign(p,q);p.ride=null;p.rideU=0;p.rideReady=elapsed+6;p.speed=0;if(net)net.emit('kart:state',{x:p.x,y:p.y,angle:p.angle,speed:0,t:p.t,rescue:true});elapsed+=3;announce('BACK ON TRACK · +3 SECONDS');}
- function start(count=1){if(!window.GyroGolfTHREE){toast.textContent='3D engine is loading. Please try again.';return;}for(const id of ['kartAgain','kartSolo','kartSplit'])document.getElementById(id).style.display='inline-block';net=null;humans=count;active=true;window.gyroKartActive=true;window.gyroKartBridge?.stopMusic();engine.play().then(()=>{if(paused||countdown>0)engine.pause();}).catch(()=>{});root.classList.add('open');keys.clear();generate();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}
+ function start(count=1){result.dataset.podium='';if(!window.GyroGolfTHREE){toast.textContent='3D engine is loading. Please try again.';return;}for(const id of ['kartAgain','kartSolo','kartSplit'])document.getElementById(id).style.display='inline-block';net=null;humans=count;active=true;window.gyroKartActive=true;window.gyroKartBridge?.stopMusic();engine.play().then(()=>{if(paused||countdown>0)engine.pause();}).catch(()=>{});root.classList.add('open');keys.clear();generate();last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);}
  function exit(){const wasOnline=!!net;net=null;active=false;countdownClip.pause();kartBirds?.pause();kartWind?.pause();updateWindSound(false);engine.pause();engine.currentTime=0;clearKartWorld();if(kart3d){kart3d.renderer.dispose();kart3d=null;}window.gyroKartActive=false;root.classList.remove('open');keys.clear();cancelAnimationFrame(raf);if(wasOnline)window.gyroKartBridge?.leave();window.gyroKartBridge?.resumeMusic();}
  document.querySelector('[data-game-mode="kart"]').addEventListener('click',e=>{e.stopImmediatePropagation();e.preventDefault();start(1);document.getElementById('kartOnlineStart').style.display=window.gyroKartBridge?.inRoom()?'inline-block':'none';paused=true;result.style.display='block';document.getElementById('kartResultTitle').textContent='KART RALLY';document.getElementById('kartResultText').textContent='Choose solo or two-player split-screen. Online: create a room in the golf menu first.';},true);
  document.getElementById('kartOnlineStart').onclick=()=>{paused=true;window.gyroKartBridge.launch();};
@@ -35438,6 +35520,14 @@ window.GyroGolfTHREE=THREE;
    buildingBox(p,-w*.25,17,d/2+3,16,25,3,'#304753');
    for(let stripe=0;stripe<6;stripe++)buildingBox(p,-w/2+(stripe+.5)*w/6,34,d/2+8,w/6,5,18,stripe%2?'#f6efd8':facades[(district+slot)%facades.length]);
   }
+  // Street furniture uses the same reserved footprints as large structures.
+  for(let i=0;i<100;i++){const p=site((i+.35)/100,(i%2?1:-1)*(250+(i%3)*55),22);if(!p)continue;
+   buildingBox(p,0,0,0,42,3,36,'#b6b9ac');
+   if(i%3===0){buildingBox(p,0,68,0,3,136,3,'#34475a');buildingBox(p,8,135,0,20,3,3,'#34475a');buildingBox(p,17,133,0,9,5,9,'#fff5b8');}
+   else if(i%3===1){buildingBox(p,0,5,0,30,9,22,'#a88b6b');buildingBox(p,0,11,0,26,8,18,'#4e9b6a');for(const x of [-8,0,8])buildingBox(p,x,16,0,4,4,4,i%2?'#ef9daa':'#f9d557');}
+   else{for(const x of [-12,12])buildingBox(p,x,5,0,3,10,14,'#34475a');buildingBox(p,0,10,0,32,3,16,'#c29257');buildingBox(p,0,18,7,32,12,3,'#c29257');}
+  }
+  for(let i=0;i<7;i++){const p=site(.015+i*.009,480,80);if(!p)continue;const c=['#df725c','#5b9fc2','#e5c457'][i%3];buildingBox(p,0,28,0,110,56,70,c);buildingBox(p,0,59,0,120,6,82,'#e8e8d4');buildingBox(p,0,22,-36,74,40,2,'#233c48');for(const x of [-22,0,22])buildingBox(p,x,24,-38,2,36,1,'#86a9b0');buildingBox(p,0,49,-38,78,7,2,'#fff0bd');}
   for(const [color,b] of buildingBatches){const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(b.vertices,3));geometry.setIndex(b.indices);geometry.computeVertexNormals();k.world.add(new T.Mesh(geometry,new T.MeshStandardMaterial({color,flatShading:true,roughness:.85})));}
   for(let i=0;i<190;i++){const p=site(i/190,(i%2?1:-1)*(240+(i%7)*36),22);if(!p)continue;if(['desert','volcanic'].includes(circuitConfig.theme)){const rock=new T.Mesh(leafGeo,rockMat);rock.position.set(p.x,p.base+12,p.y);rock.scale.set(1.1,.7,.9);k.world.add(rock);}else{const trunk=new T.Mesh(trunkGeo,trunkMat);trunk.position.set(p.x,p.base+11,p.y);const leaves=new T.Mesh(leafGeo,leafMat);leaves.position.set(p.x,p.base+34,p.y);leaves.scale.set(1,1.25,1);k.world.add(trunk,leaves);}}
   // Large scenery must be farther from every road segment, including hairpins.
@@ -35539,7 +35629,7 @@ window.GyroGolfTHREE=THREE;
    if(server.trickAt){r.trickKind=server.trickKind||0;r.tricked=true;r.trickAge=Math.max(0,(data.now-server.trickAt)/1000);}else{r.tricked=false;r.trickAge=0;}r.catchup=Math.max(0,((server.catchupUntil||0)-data.now)/1000);r.air=Math.max(0,((server.airUntil||0)-data.now)/1000);r.spin=Math.max(0,((server.spinUntil||0)-data.now)/1000);r.boost=Math.max(0,(server.boostUntil-data.now)/1000);r.shield=Math.max(0,(server.shieldUntil-data.now)/1000);r.slow=Math.max(0,(server.slowUntil-data.now)/1000);r.star=Math.max(0,((server.starUntil||0)-data.now)/1000);if(server.repairAt && server.repairAt!==(r.lastRepairAt||0)){r.lastRepairAt=server.repairAt;r.speed=Math.max(220,r.speed);}
    if(server.item&&!r.item)r.roll=1.5;r.item=server.item;r.flowTypes=server.flowTypes||[];r.flowBursts=server.flowBursts||0;r.lap=server.lap;r.gates=server.gates;
    if(r!==racers[0]){r.ride=stuntRoutes.find(z=>z.id===server.rideId)||null;r.rideU=server.rideU||0;r.speed=server.speed;r.drift=server.driftStarted?Math.min(2.5,(data.now-server.driftStarted)/1000):0;r.target=server;r.total=server.lap+server.t;r.t=server.t;}
-   if(r===racers[0]&&server.finished&&!finished){finished=true;const place=data.finishOrder.indexOf(netIndex)+1;document.getElementById('kartResultTitle').textContent='FINISHED · PLACE '+place;document.getElementById('kartResultText').textContent='Race complete. Return to the menu to create or join the next race.';result.style.display='block';}
+   if(r===racers[0]&&server.finished){finished=true;const complete=data.states.every(v=>v.finished||v.connected===false),entries=[...data.states].sort((a,b)=>{if(a.finished&&b.finished)return data.finishOrder.indexOf(a.index)-data.finishOrder.indexOf(b.index);return Number(b.finished)-Number(a.finished)||(b.lap+b.t)-(a.lap+a.t);}).map(v=>({name:racers.find(p=>p.index===v.index)?.name||'Player '+(v.index+1),rank:v.finished?data.finishOrder.indexOf(v.index)+1:0,finished:v.finished,label:v.finished?'Finished':v.connected===false?'Disconnected':'Still racing'}));const key=JSON.stringify(entries);if(result.dataset.podium!==key){result.dataset.podium=key;document.getElementById('kartResultTitle').textContent=complete?'RACE PODIUM':'YOU FINISHED · LIVE PLACEMENTS';window.renderMatchPodium?.(document.getElementById('kartResultText'),entries,complete?'FINAL PLACEMENTS':'WAITING FOR THE FINISHERS');}result.style.display='block';}
   }
   data.boxes.forEach((until,i)=>{boxes[i].ready=Math.max(0,(until-data.now)/1000);});hazards=data.hazards.map(h=>({...h,life:(h.until-data.now)/1000}));
  };

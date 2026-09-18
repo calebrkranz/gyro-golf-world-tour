@@ -64,7 +64,7 @@ setInterval(()=>{
  const now=Date.now();for(const room of rooms.values())if(room.kart&&room.status==='playing'){
   for(const shot of room.kart.projectiles)if(shot.hitAt<=now&&!shot.done){shot.done=true;const target=room.kart.states[shot.targetIndex];if(target&&!target.finished)kartImpact(room,target,1.7,'GOLF BALL HIT');}room.kart.projectiles=room.kart.projectiles.filter(p=>!p.done);
   room.kart.hazards=room.kart.hazards.filter(h=>h.until>now);
-  io.to(room.code).volatile.emit('kart:snapshot',{now,startAt:room.kart.startAt,states:room.kart.states,boxes:room.kart.boxes,hazards:room.kart.hazards,foreShots:room.kart.foreShots,finishOrder:room.kart.finishOrder});
+  io.to(room.code).volatile.emit('kart:snapshot',{now,startAt:room.kart.startAt,states:room.kart.states.map(r=>({...r,connected:room.players[r.index]?.connected!==false})),boxes:room.kart.boxes,hazards:room.kart.hazards,foreShots:room.kart.foreShots,finishOrder:room.kart.finishOrder});
  }
 },50).unref();
 
@@ -279,6 +279,7 @@ function sanitizeLiveShot(value, room, playerIndex) {
     playerIndex,
     holeIndex: room.holeIndex,
     sequence: Math.max(0, Math.trunc(finiteNumber(live.sequence))),
+    sentAt:Math.max(0,Math.min(1e12,finiteNumber(live.sentAt))),
     kind,
     ballState,
     swingPhase: String(live.swingPhase || "ADDRESS").slice(0, 16),
@@ -294,7 +295,7 @@ function sanitizeLiveShot(value, room, playerIndex) {
       y: clamp(finiteNumber(live.velocity?.y), -500, 500),
       z: clamp(finiteNumber(live.velocity?.z), -500, 500),
     },
-    sentAt: Date.now(),
+    relayedAt: Date.now(),
   };
 }
 
@@ -562,6 +563,12 @@ io.on("connection", (socket) => {
     io.to(room.code).emit('kart:item',{index:r.index,item,targetIndex,x:r.x,y:r.y});
   });
 
+  socket.on('shot:sound',payload=>{
+    const room=rooms.get(socket.data.roomCode),playerIndex=socket.data.playerIndex;if(!room||room.status!=='playing'||room.activeIndex!==playerIndex||Number(payload?.holeIndex)!==room.holeIndex)return;
+    const names=['whoosh','heavyHit','lightHit','splash','coin','birdiePlain','birdieGood','birdieNice','parVoice','eagleVoice','crowdAww','landing'];if(!names.includes(payload.name))return;
+    const now=Date.now();if(now-(socket.data.soundWindow||0)>1000){socket.data.soundWindow=now;socket.data.soundCount=0;}if((socket.data.soundCount=(socket.data.soundCount||0)+1)>16)return;
+    socket.to(room.code).emit('shot:sound',{playerIndex,holeIndex:room.holeIndex,sequence:Math.max(0,Math.trunc(finiteNumber(payload.sequence))),name:payload.name,volume:Math.max(0,Math.min(1,finiteNumber(payload.volume,.5))),rate:Math.max(.72,Math.min(1.35,finiteNumber(payload.rate,1))),lie:['Fairway','Green','Fringe','Tee','Rough','Deep Rough','Bunker','Water'].includes(payload.lie)?payload.lie:'Fairway'});
+  });
   socket.on("shot:live", (payload) => {
     const room = rooms.get(socket.data.roomCode);
     const playerIndex = socket.data.playerIndex;
@@ -574,7 +581,7 @@ io.on("connection", (socket) => {
     socket.data.lastLiveShotAt = now;
 
     const event = sanitizeLiveShot(payload, room, playerIndex);
-    socket.to(room.code).emit("shot:live", event);
+    socket.to(room.code).volatile.emit("shot:live", event);
   });
 
   socket.on('battle:place',(payload,callback)=>{
