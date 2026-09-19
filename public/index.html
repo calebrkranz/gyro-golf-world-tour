@@ -35543,7 +35543,7 @@ window.GyroGolfTHREE=THREE;
   const mat=color=>new T.MeshLambertMaterial({color});
   // Broad, smoothly varying turf patches, shared by the flat land and raised verges.
   const grassBase=parseInt(theme.grass.slice(1),16);
-  function turfColor(x,z){const tone=1+Math.sin(x*.0031+circuitConfig.phase)*.11+Math.cos(z*.0042)*.08+Math.sin((x+z)*.007)*.035;return [((grassBase>>16)&255)/255*tone,((grassBase>>8)&255)/255*tone,(grassBase&255)/255*tone].map(v=>Math.min(1,v));}
+  function turfColor(x,z){const tone=.88+Math.sin(x*.0031+circuitConfig.phase)*.15+Math.cos(z*.0042)*.10,blend=Math.max(0,Math.sin(x*.006+Math.cos(z*.004)*2))*.32;const lawn=circuitConfig.theme==='desert'?[.65,.53,.31]:circuitConfig.theme==='volcanic'?[.24,.29,.23]:[.38,.53,.28];return [((grassBase>>16)&255)/255,((grassBase>>8)&255)/255,(grassBase&255)/255].map((v,i)=>Math.min(1,v*tone*(1-blend)+lawn[i]*blend));}
   const turfVertices=[],turfColors=[],turfIndices=[],turfCells=100;
   for(let j=0;j<=turfCells;j++)for(let i=0;i<=turfCells;i++){const x=-9000+i*180,z=-9000+j*180;turfVertices.push(x,-2,z);turfColors.push(...turfColor(x,z));if(i<turfCells&&j<turfCells){const n=j*(turfCells+1)+i;turfIndices.push(n,n+turfCells+1,n+1,n+1,n+turfCells+1,n+turfCells+2);}}
   const turfGeometry=new T.BufferGeometry();turfGeometry.setAttribute('position',new T.Float32BufferAttribute(turfVertices,3));turfGeometry.setAttribute('color',new T.Float32BufferAttribute(turfColors,3));turfGeometry.setIndex(turfIndices);turfGeometry.computeVertexNormals();k.world.add(new T.Mesh(turfGeometry,new T.MeshLambertMaterial({vertexColors:true})));
@@ -35634,11 +35634,33 @@ window.GyroGolfTHREE=THREE;
    }else{buildingBox(p,0,45,0,3,90,3,'#34475a');buildingBox(p,0,92,0,14,8,14,'#fff2aa');}
   }
   for(const [color,b] of buildingBatches){const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(b.vertices,3));geometry.setIndex(b.indices);geometry.computeVertexNormals();k.world.add(new T.Mesh(geometry,new T.MeshStandardMaterial({color,flatShading:true,roughness:.85})));}
-  for(let i=0;i<190;i++){const p=site(i/190,(i%2?1:-1)*(240+(i%7)*36),22);if(!p)continue;if(['desert','volcanic'].includes(circuitConfig.theme)){const rock=new T.Mesh(leafGeo,rockMat);rock.position.set(p.x,p.base+12,p.y);rock.scale.set(1.1,.7,.9);k.world.add(rock);}else{const trunk=new T.Mesh(trunkGeo,trunkMat);trunk.position.set(p.x,p.base+11,p.y);const leaves=new T.Mesh(leafGeo,leafMat);leaves.position.set(p.x,p.base+34,p.y);leaves.scale.set(1,1.25,1);k.world.add(trunk,leaves);}}
+  for(let i=0;i<190;i++){const p=site(i/190,(i%2?1:-1)*(240+(i%7)*36),22);if(!p)continue;if(['desert','volcanic'].includes(circuitConfig.theme)){const rock=new T.Mesh(leafGeo,rockMat);rock.position.set(p.x,p.base+12,p.y);rock.scale.set(1.1,.7,.9);k.world.add(rock);}else{const trunk=new T.Mesh(trunkGeo,trunkMat);trunk.position.set(p.x,p.base+11,p.y);const pine=i%3===0,leaves=new T.Mesh(pine?new T.ConeGeometry(22,52,7):leafGeo,pine?mat('#31654d'):leafMat);leaves.position.set(p.x,p.base+(pine?39:34),p.y);leaves.scale.set(1+(i%4)*.12,pine?1:1.05+(i%3)*.2,1);k.world.add(trunk,leaves);if(!pine&&i%3===1)for(const side of [-1,1]){const crown=new T.Mesh(leafGeo,leafMat);crown.position.set(p.x+side*13,p.base+31,p.y+7);crown.scale.set(.75,.85,.75);k.world.add(crown);}}}
   // Large scenery must be farther from every road segment, including hairpins.
   const hillMat=mat(theme.grass);for(let i=0;i<28;i++){const p=site((i+.3)/28,(i%2?1:-1)*(540+i%3*130),160);if(!p)continue;const hill=new T.Mesh(new T.SphereGeometry(1,18,12),hillMat);hill.scale.set(160,65+i%4*22,140);hill.position.set(p.x,p.base-18,p.y);k.world.add(hill);}
   for(let i=0;i<16;i++){const p=site((i+.4)/16,(i%2?1:-1)*280,45);if(!p)continue;const house=new T.Group();house.position.set(p.x,p.base,p.y);house.rotation.y=-p.angle;const wall=new T.Mesh(new T.BoxGeometry(44,27,34),mat(i%2?'#f3e0be':'#bedad5'));wall.position.y=13.5;const roof=new T.Mesh(new T.ConeGeometry(35,18,4),mat('#995c48'));roof.position.y=35;roof.rotation.y=Math.PI/4;const door=new T.Mesh(new T.BoxGeometry(9,18,1),mat('#304f59'));door.position.set(0,9,17.6);house.add(wall,roof,door);k.world.add(house);}
   for(let i=0;i<40;i++){const p=site((i+.1)/40,(i%2?1:-1)*170,5);if(!p)continue;const pole=new T.Mesh(new T.CylinderGeometry(1,1,38,6),white);pole.position.set(p.x,p.base+19,p.y);const flag=new T.Mesh(new T.BoxGeometry(14,9,.7),mat(i%2?'#ffd34a':'#e65b7a'));flag.position.set(p.x+7,p.base+33,p.y);k.world.add(pole,flag);}
+  // Garden islands echo golf's fairway/rough contrast, with all detail baked once.
+  const gardenPos=[],gardenColors=[];k.gardenSites=[];
+  const rgb=hex=>[(hex>>16&255)/255,(hex>>8&255)/255,(hex&255)/255];
+  const dry=['desert','volcanic'].includes(circuitConfig.theme),lawn=rgb(dry?0x9b9364:0x9dbd72),edgeColor=rgb(dry?0x756750:0x467b52),mulch=rgb(circuitConfig.theme==='cherry'?0xa4768b:0x847552);
+  function gardenTri(a,b,c,color){for(const v of [a,b,c]){gardenPos.push(...v);gardenColors.push(...color);}}
+  function pebble(x,y,z,w,h,color){const v=[[x-w,y,z],[x+w,y,z],[x,y,z-w],[x,y,z+w],[x,y+h,z],[x,y-h*.25,z]];for(const f of [[0,2,4],[2,1,4],[1,3,4],[3,0,4],[2,0,5],[1,2,5],[3,1,5],[0,3,5]])gardenTri(v[f[0]],v[f[1]],v[f[2]],color);}
+  for(let i=0;i<600;i++){
+    const radius=32+(i%4)*12,p=site((i+.27)/600,(i%2?1:-1)*(205+(i%9)*65),radius,8);if(!p)continue;k.gardenSites.push({...p,radius});
+    const groundPoint=(a,r)=>{const x=p.x+Math.cos(a)*r,z=p.y+Math.sin(a)*r*.78;return [x,kartGround(x,z)+.35,z];};
+    for(let ring=0;ring<6;ring++)for(let j=0;j<32;j++){
+      const a=j*Math.PI/16,b=(j+1)*Math.PI/16,r0=radius*ring/6,r1=radius*(ring+1)/6,c=ring===5?mulch:ring===4?edgeColor:lawn;
+      const shade=ring<4?1+(Math.floor((p.x+Math.cos((a+b)/2)*(r0+r1)/2)/9)%2===0?.08:-.06):1,color=c.map(v=>Math.min(1,v*shade));
+      gardenTri(groundPoint(a,r0),groundPoint(b,r0),groundPoint(a,r1),color);gardenTri(groundPoint(a,r1),groundPoint(b,r0),groundPoint(b,r1),color);
+    }
+    for(let j=0;j<18;j++){
+      const a=j*2.399+i,r=radius*(.76+(j%3)*.055),x=p.x+Math.cos(a)*r,z=p.y+Math.sin(a)*r*.78,y=kartGround(x,z)+.6;
+      if(j%5===0){pebble(x,y+2,z,3+j%3,3.5,rgb(circuitConfig.theme==='cherry'?0xc891ab:0x899381));continue;}
+      const h=3+(j%4)*1.2,grass=rgb(dry?0x958252:0x356b47);gardenTri([x-1,y,z],[x+1,y,z],[x+.4,y+h,z],grass);gardenTri([x,y,z-1],[x,y,z+1],[x,y+h,z+.4],grass);
+      if(j%3===0)pebble(x,y+h,z,1.5,1.5,rgb([0xffcc58,0xe694b9,0xdde8c6][Math.floor(j/3)%3]));
+    }
+  }
+  const gardenGeometry=new T.BufferGeometry();gardenGeometry.setAttribute('position',new T.Float32BufferAttribute(gardenPos,3));gardenGeometry.setAttribute('color',new T.Float32BufferAttribute(gardenColors,3));gardenGeometry.computeVertexNormals();k.world.add(new T.Mesh(gardenGeometry,new T.MeshLambertMaterial({vertexColors:true,side:T.DoubleSide})));
   const gate=point(0);const gateGroup=new T.Group();gateGroup.position.set(gate.x,trackHeight(0),gate.y);gateGroup.rotation.y=-gate.angle;
   for(const z of [-119,119]){const post=new T.Mesh(new T.BoxGeometry(6,65,6),white);post.position.set(0,32,z);gateGroup.add(post);}
   const beam=new T.Mesh(new T.BoxGeometry(9,15,248),mat('#ffd453'));beam.position.y=64;gateGroup.add(beam);k.world.add(gateGroup);
