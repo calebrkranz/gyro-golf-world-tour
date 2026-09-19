@@ -35822,7 +35822,7 @@ window.GyroGolfTHREE=THREE;
    if(grounded){c.angle+=steer*2.5*dt*(forward<0?-1:1);const speed=forward*(boost?350:230),blend=1-Math.exp(-4*dt);c.vx+=(Math.cos(c.angle)*speed-c.vx)*blend;c.vz+=(Math.sin(c.angle)*speed-c.vz)*blend;}
    else{const ease=1-Math.exp(-5*dt);c.angle+=steer*.85*dt;c.pitch+=(forward*.5-(c.pitch||0))*ease;c.roll+=(steer*.22-(c.roll||0))*ease;if(boost){c.vx+=Math.cos(c.angle)*Math.cos(c.pitch)*230*dt;c.vz+=Math.sin(c.angle)*Math.cos(c.pitch)*230*dt;c.vy+=Math.sin(c.pitch)*360*dt;}}
    const jumpPressed=k.jump&&!c.jumpHeld;
-   if(jumpPressed&&(grounded||c.jumps<2)){c.jumps++;if(c.jumps===1){c.vy=340; c.y=ground.y+1;}else{c.vy=Math.max(c.vy,160);if(forward||steer){const a=c.angle+Math.atan2(steer,forward);c.vx+=Math.cos(a)*190;c.vz+=Math.sin(a)*190;c.dodge=.55;c.dodgeAge=0;c.dodgeForward=forward;c.dodgeSide=steer;}}}
+   if(jumpPressed&&(grounded||c.jumps<2)){c.jumps++;if(c.jumps===1){c.vy=340; c.y=ground.y+1;}else{c.vy=Math.max(c.vy,160);if(forward||steer){const a=c.angle+Math.atan2(steer,forward),dodgeSpeed=clamp(Math.hypot(c.vx,c.vz)*.75+160,270,420);c.vx=Math.cos(a)*dodgeSpeed;c.vz=Math.sin(a)*dodgeSpeed;c.dodge=.55;c.dodgeAge=0;c.dodgeForward=forward;c.dodgeSide=steer;}}}
    c.jumpHeld=!!k.jump;c.vy-=460*dt;c.x+=c.vx*dt;c.z+=c.vz*dt;c.y+=c.vy*dt;
    contain(c,24,0);const floor=surface(c.x,c.z);if((grounded&&!jumpPressed)||c.y<floor.y){c.y=floor.y;c.vy=0;if(!k.up&&!k.down){c.vx-=floor.nx*floor.slope*300*dt;c.vz-=floor.nz*floor.slope*300*dt;}}
    if(c.y>C.ceiling-55){c.y=C.ceiling-55;c.vy=Math.min(0,c.vy);}for(const v of ['vx','vz'])c[v]=clamp(c[v],-520,520);
