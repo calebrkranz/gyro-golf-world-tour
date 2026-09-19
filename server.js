@@ -1,3 +1,4 @@
+const Stadium = require('./stadium');
 "use strict";
 
 const crypto = require("node:crypto");
@@ -98,6 +99,7 @@ function battleDraft(room){
 }
 function publicRoom(room) {
   return {
+    stadium:room.stadium||null,
     code: room.code,
     hostIndex: room.hostIndex,
     status: room.status,
@@ -481,7 +483,8 @@ io.on("connection", (socket) => {
       return acknowledge(callback, { ok: false, error: "Two connected players are required." });
     }
     const requestedMode = String(payload?.mode || "stroke");
-    const mode = ["stroke", "island", "party", "battle", "longhaul", "kart"].includes(requestedMode) ? requestedMode : "stroke";
+    const mode = ["stroke", "island", "party", "battle", "longhaul", "kart", "stadium"].includes(requestedMode) ? requestedMode : "stroke";
+    if(mode==='stadium'&&![2,4].includes(room.players.length))return acknowledge(callback,{ok:false,error:'Stadium requires exactly 2 players (1v1) or 4 players (2v2).'});
     room.round = {
       mode,
       seed: String(payload?.seed || "ONLINE").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24) || "ONLINE",
@@ -497,6 +500,7 @@ io.on("connection", (socket) => {
     room.traps=[];room.trapDraft=null;
     room.battleEffects = room.players.map(() => ({ effect: "", shield: false }));
     if(mode === "kart") startKart(room);
+    if(mode === "stadium"){room.stadium=Stadium.create(room.players);room.stadiumInputs={};room.stadiumInputAt={};}
     touch(room);
     acknowledge(callback, { ok: true });
     io.to(room.code).emit("game:started", publicRoom(room));
@@ -505,6 +509,11 @@ io.on("connection", (socket) => {
   // Live packets are visual-only. The authoritative score/turn still comes
   // from turn:submit. A compact ~25 Hz relay keeps hosted spectators smooth;
   // same-Wi-Fi peers normally receive the faster direct WebRTC stream.
+  socket.on('stadium:input',payload=>{
+    const room=rooms.get(socket.data.roomCode),i=socket.data.playerIndex;if(!room?.stadium||room.status!=='playing'||room.round?.mode!=='stadium'||!room.stadium.cars[i]||room.stadium.winner>=0)return;
+    const now=Date.now();if(now-(room.stadiumInputAt[i]||0)<12)return;room.stadiumInputAt[i]=now;const keys={};for(const k of ['up','down','left','right','jump','boost'])keys[k]=payload?.[k]===true;room.stadiumInputs[i]=keys;
+  });
+  socket.on('stadium:rematch',()=>{const room=rooms.get(socket.data.roomCode);if(!room?.stadium||room.hostIndex!==socket.data.playerIndex||room.stadium.winner<0)return;room.stadium=Stadium.create(room.players);room.stadiumInputs={};room.stadiumInputAt={};io.to(room.code).emit('stadium:snapshot',room.stadium);});
   socket.on('kart:state', payload=>{
     const room=rooms.get(socket.data.roomCode),now=Date.now(),race=room?.kart;
     if(!race||room.status!=='playing'||now<race.startAt)return;
@@ -710,3 +719,6 @@ setInterval(() => {
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Gyro Golf World Tour listening on port ${PORT}`);
 });
+
+let stadiumTick=Date.now(),stadiumAccumulator=0,stadiumBroadcast=0;
+setInterval(()=>{const now=Date.now();stadiumAccumulator=Math.min(.1,stadiumAccumulator+(now-stadiumTick)/1000);stadiumTick=now;while(stadiumAccumulator>=1/120){for(const room of rooms.values())if(room.stadium&&room.status==='playing'&&room.round?.mode==='stadium'){for(const c of room.stadium.cars)if(now-(room.stadiumInputAt[c.index]||0)>500)room.stadiumInputs[c.index]={};Stadium.step(room.stadium,room.stadiumInputs,1/120);}stadiumAccumulator-=1/120;}if(now-stadiumBroadcast>=33){stadiumBroadcast=now;for(const room of rooms.values())if(room.stadium&&room.status==='playing'){io.to(room.code).volatile.emit('stadium:snapshot',room.stadium);}}},8).unref();

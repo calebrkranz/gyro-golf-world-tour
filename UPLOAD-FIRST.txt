@@ -1,3 +1,5 @@
+STADIUM UPDATE: Upload stadium.js alongside server.js and kart-tracks.js at the repository root. Replace public/index.html. Redeploy Render. Every player must refresh. Golf Kart Stadium requires exactly 2 or 4 connected players.
+
 FAIRWAY SURVIVAL + ONLINE PODIUM / SPECTATOR UPDATE
 Replace public/index.html, server.js and kart-tracks.js together; redeploy and refresh all players.
 Power-Up Tour: off-fairway landings and rollouts return to the previous shot origin. The attempt counts; no extra reset penalty. Tee, green and fringe are safe. Ordinary golf is unchanged.
