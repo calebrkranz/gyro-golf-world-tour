@@ -129,5 +129,13 @@
   if(old&&requested===-1&&previous.rideU>.65&&Math.hypot(r.x-old.b.x,r.y-old.b.y)<100&&r.t>=old.end-.003&&r.t<old.end+.02)return r.trickAt?3000:2000;
   return 0;
  }
- const api={outlines,items,build,point,height,contactPair,lapsForLength,drafting,crossing,shortcuts,onShortcut,roadClearance,canFore,foreShot,forePose,foreContact,flowAction,rushGate,jumpZones,rampState,airLift,racePosition,positionItem,usableItem,stuntRoutes,ridePose,rideEntry,validateRide,railWindow};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
+ const passHistory=new WeakMap();
+ function overtakeReward(r,others,seconds){
+  let h=passHistory.get(r);if(!h){h={ahead:new Map(),ready:seconds+1};passHistory.set(r,h);}let reward=false;
+  for(const o of others){if(o===r)continue;const gap=(o.lap||0)+o.t-((r.lap||0)+r.t),before=h.ahead.get(o),distance=Math.hypot(r.x-o.x,r.y-o.y);
+   if(seconds>=h.ready&&before>0&&before<.025&&gap<=0&&gap>-.025&&distance<180&&r.speed>120&&!(r.spin>0)&&!r.finished&&!r.done&&!o.finished&&!o.done){reward=true;h.ready=seconds+8;}
+   h.ahead.set(o,gap);
+  }return reward;
+ }
+ const api={overtakeReward,outlines,items,build,point,height,contactPair,lapsForLength,drafting,crossing,shortcuts,onShortcut,roadClearance,canFore,foreShot,forePose,foreContact,flowAction,rushGate,jumpZones,rampState,airLift,racePosition,positionItem,usableItem,stuntRoutes,ridePose,rideEntry,validateRide,railWindow};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -534,6 +534,7 @@ io.on("connection", (socket) => {
     race.foreShots=race.foreShots.filter(s=>seconds-s.start<4).slice(-12);
     for(const shot of race.foreShots){if(shot.results.includes(r.index))continue;const h=KartTracks.forePose(geometry,room.round.kart,shot,seconds),contact=r.airUntil>now||r.rideId>=0?'':KartTracks.foreContact(h,r);if(contact){shot.results.push(r.index);if(contact==='hit')kartImpact(room,r,1.3,'GIANT GOLF BALL');else{r.boostUntil=Math.max(r.boostUntil,now+1800);kartFlow(room,r,'dodge',now);io.to(room.code).emit('kart:item',{index:r.index,item:'DODGE BOOST'});}}}
     for(let i=0;i<5;i++){const pad=kartPoint(room.round.kart,.1+i*.2,(i%2?1:-1)*35);if(now>(r.padReady||0)&&Math.hypot(r.x-pad.x,r.y-pad.y)<38){r.padReady=now+4000;r.boostUntil=Math.max(r.boostUntil,now+1600);}}
+    if(KartTracks.overtakeReward(r,race.states,now/1000)&&!(r.spinUntil>now)){r.boostUntil=Math.max(r.boostUntil,now+1200);io.to(room.code).emit('kart:item',{index:r.index,item:'CLEAN PASS BOOST'});}
     kartContacts(room);
     const gate=kartPoint(room.round.kart,((r.gates+1)%4)/4);
     if(Math.hypot(r.x-gate.x,r.y-gate.y)<136){r.gates++;r.lap=Math.floor(r.gates/4);if(r.lap>=room.round.kart.laps){r.finished=true;race.finishOrder.push(r.index);}}
@@ -584,6 +585,13 @@ io.on("connection", (socket) => {
     socket.to(room.code).volatile.emit("shot:live", event);
   });
 
+  socket.on('battle:trigger',(payload,callback)=>{
+   const room=rooms.get(socket.data.roomCode);
+   if(!room||room.status!=='playing'||room.round?.mode!=='battle'||room.activeIndex!==socket.data.playerIndex||payload?.holeIndex!==room.holeIndex)return acknowledge(callback,{ok:false});
+   const trap=(room.traps||[]).find(t=>t.id===payload.id&&t.hole===room.holeIndex);
+   if(!trap||!['bomb','mud'].includes(trap.type))return acknowledge(callback,{ok:false});
+   room.traps=room.traps.filter(t=>t.id!==trap.id);const state=publicRoom(room);acknowledge(callback,{ok:true,room:state});io.to(room.code).emit('battle:state',state);
+  });
   socket.on('battle:place',(payload,callback)=>{
    const room=rooms.get(socket.data.roomCode),draft=room&&battleDraft(room);
    if(!draft||room.activeIndex!==socket.data.playerIndex||draft.placed||payload?.key!==draft.key||!draft.choices.includes(payload.type))return acknowledge(callback,{ok:false,error:'This card is not available for your turn.'});
