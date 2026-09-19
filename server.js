@@ -577,7 +577,7 @@ io.on("connection", (socket) => {
     if (Number(payload?.holeIndex) !== room.holeIndex) return;
 
     const now = Date.now();
-    if (now - socket.data.lastLiveShotAt < 38) return;
+    if (now - socket.data.lastLiveShotAt < 20) return;
     socket.data.lastLiveShotAt = now;
 
     const event = sanitizeLiveShot(payload, room, playerIndex);
