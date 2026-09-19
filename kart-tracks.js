@@ -55,17 +55,18 @@
  function onShortcut(routes,x,y){for(const s of routes){const u=Math.max(0,Math.min(1,((x-s.a.x)*(s.b.x-s.a.x)+(y-s.a.y)*(s.b.y-s.a.y))/(s.d*s.d)));if(Math.hypot(x-s.a.x-(s.b.x-s.a.x)*u,y-s.a.y-(s.b.y-s.a.y)*u)<30)return {height:s.h1+(s.h2-s.h1)*u,t:s.t+(s.end-s.t)*u};}return null;}
 
  function roadClearance(track,x,y){let d=Infinity;for(const p of track)d=Math.min(d,Math.hypot(x-p.x,y-p.y));return d;}
- function canFore(track,r,shots,seconds,length){if(r.speed<120||r.spin>0||roadClearance(track,r.x,r.y)>104)return false;const t=((r.t+r.speed*1.45/length)%1+1)%1,a=point(track,t),b=point(track,t+.004);if(t<.025||t>.975||Math.cos(a.angle-b.angle)<.75)return false;return shots.filter(s=>seconds-s.start<4).length<6&&!shots.some(s=>seconds-s.start<4&&Math.hypot(point(track,s.t).x-a.x,point(track,s.t).y-a.y)<400);}
- function foreShot(track,config,r,seconds,length,id){const t=((r.t+Math.max(160,r.speed*1.45)/length)%1+1)%1,p=point(track,t),dx=r.x-point(track,r.t).x,dy=r.y-point(track,r.t).y,lane=Math.max(-60,Math.min(60,-dx*Math.sin(r.angle)+dy*Math.cos(r.angle)));return {id,t,lane,start:seconds,owner:r.index,results:[]};}
- function forePose(track,config,shot,seconds){const age=seconds-shot.start,p=point(track,shot.t,shot.lane),warning=age<1.4,active=age>=1.4&&age<3.2,roll=Math.max(0,age-1.4)*-90;return {warning,active,age,angle:p.angle,x:p.x+Math.cos(p.angle)*roll,y:p.y+Math.sin(p.angle)*roll,height:height(shot.t,config)+32+(warning?Math.max(0,(1.4-age))*240:Math.abs(Math.sin((age-1.4)*5))*9),targetX:p.x,targetY:p.y,ground:height(shot.t,config)};}
- function foreContact(pose,r){if(!pose.active||r.finished||r.done)return '';const d=Math.hypot(r.x-pose.x,r.y-pose.y);return d<53?'hit':d<102&&r.speed>100&&((r.x-pose.x)*(Math.cos(r.angle)*r.speed+Math.cos(pose.angle)*90)+(r.y-pose.y)*(Math.sin(r.angle)*r.speed+Math.sin(pose.angle)*90))>0?'dodge':'';}
+ const foreTiming={warning:1.05,active:1.6,lifetime:3,cooldown:8,initial:5,rollSpeed:140};
+ function canFore(track,r,shots,seconds,length){if(r.speed<120||r.spin>0||roadClearance(track,r.x,r.y)>104)return false;const t=((r.t+Math.max(160,r.speed*1.1)/length)%1+1)%1,a=point(track,t),b=point(track,t+.004);if(t<.025||t>.975||Math.cos(a.angle-b.angle)<.75)return false;return shots.filter(s=>seconds-s.start<foreTiming.lifetime).length<6&&!shots.some(s=>seconds-s.start<foreTiming.lifetime&&Math.hypot(point(track,s.t).x-a.x,point(track,s.t).y-a.y)<400);}
+ function foreShot(track,config,r,seconds,length,id){const t=((r.t+Math.max(160,r.speed*1.1)/length)%1+1)%1,p=point(track,t),dx=r.x-point(track,r.t).x,dy=r.y-point(track,r.t).y,lane=Math.max(-60,Math.min(60,-dx*Math.sin(r.angle)+dy*Math.cos(r.angle)));return {id,t,lane,start:seconds,owner:r.index,results:[]};}
+ function forePose(track,config,shot,seconds){const age=seconds-shot.start,p=point(track,shot.t,shot.lane),warning=age>=0&&age<foreTiming.warning,active=age>=foreTiming.warning&&age<foreTiming.warning+foreTiming.active,roll=Math.max(0,age-foreTiming.warning)*-foreTiming.rollSpeed;return {warning,active,age,angle:p.angle,x:p.x+Math.cos(p.angle)*roll,y:p.y+Math.sin(p.angle)*roll,height:height(shot.t,config)+32+(warning?Math.max(0,(foreTiming.warning-age))*320:Math.abs(Math.sin((age-foreTiming.warning)*5))*9),targetX:p.x,targetY:p.y,ground:height(shot.t,config)};}
+ function foreContact(pose,r){if(!pose.active||r.finished||r.done)return '';const d=Math.hypot(r.x-pose.x,r.y-pose.y);return d<53?'hit':d<102&&r.speed>100&&((r.x-pose.x)*(Math.cos(r.angle)*r.speed+Math.cos(pose.angle)*foreTiming.rollSpeed)+(r.y-pose.y)*(Math.sin(r.angle)*r.speed+Math.sin(pose.angle)*foreTiming.rollSpeed))>0?'dodge':'';}
 
  function flowAction(r,type,seconds){if(seconds-(r.flowAt??-100)>12)r.flowTypes=[];r.flowTypes=r.flowTypes||[];if(r.flowTypes.includes(type))return false;r.flowTypes.push(type);r.flowAt=seconds;if(r.flowTypes.length>=3){r.flowTypes=[];r.flowBursts=(r.flowBursts||0)+1;return true;}return false;}
  function rushGate(track,config,seconds,i){const t=.08+i/8,p=point(track,t,(i%2?1:-1)*48),cycle=Math.floor((seconds+i*3)/24),phase=((seconds+i*3)%24+24)%24;return {...p,t,cycle,active:phase<18&&Math.cos(p.angle-point(track,t+.002).angle)>.8,left:Math.max(0,18-phase)};}
 
  function jumpZones(track,length){const candidates=[];for(let i=12;i<85;i++){const t=i/100,a=point(track,t),b=point(track,t+240/length),c=point(track,t+650/length),score=Math.cos(a.angle-b.angle)+Math.cos(b.angle-c.angle);if(score>1.93)candidates.push({t,end:t+240/length,score,lane:-48});}candidates.sort((a,b)=>b.score-a.score);const zones=[];for(const c of candidates){if(zones.every(z=>Math.abs(z.t-c.t)>.22))zones.push(c);if(zones.length===2)break;}return zones;}
  function rampState(track,zones,r){for(let i=0;i<zones.length;i++){const z=zones[i],u=(r.t-z.t)/(z.end-z.t);if(u<0||u>1.06)continue;const p=point(track,r.t,z.lane);if(Math.hypot(r.x-p.x,r.y-p.y)<36)return {i,u:Math.min(1,u),lift:60*Math.min(1,u)**2,launch:u>.92&&r.speed>150};}return null;}
- function airLift(remaining){const u=Math.max(0,Math.min(1,1-remaining/2));return remaining>0?60*(1-u)+Math.sin(u*Math.PI)*160:0;}
+ function airLift(remaining,takeoffSpeed=346.5){const u=Math.max(0,Math.min(1,1-remaining/2)),peak=Math.min(270,85+(Math.max(150,Math.min(710,takeoffSpeed))-150)*.36);return remaining>0?60*(1-u)+Math.sin(u*Math.PI)*peak:0;}
 
  function racePosition(r,roster){const progress=v=>v.finished||v.done?1e6+(v.lap||0):Number.isFinite(v.total)?v.total:(v.lap||0)+(v.t||0)-(!(v.gates>0)&&v.t>.75?1:0);const ordered=roster.map((v,i)=>({v,i:v.index??i,p:progress(v)})).sort((a,b)=>b.p-a.p||a.i-b.i);return ordered.findIndex(v=>v.v===r)+1;}
  function positionItem(r,roster,random=Math.random){const rank=racePosition(r,roster);if(rank<=1)return 'turbo';if(rank===roster.length)return 'catchup';const pool=['turbo','shield','storm','oil','rocket','repair','dash','bubble','pulse'];return pool[Math.min(pool.length-1,Math.floor(random()*pool.length))];}
@@ -122,11 +123,11 @@
   if(z){const u=(r.t-z.t)/(z.end-z.t),p=ridePose(z,u),continuing=old?.id===z.id;
    const entering=available&&!old&&!(r.airUntil>now)&&!(r.spinUntil>now)&&r.speed>140&&u<=.3&&Math.hypot(previous.x-z.a.x,previous.y-z.a.y)<110&&Math.cos(r.angle-z.a.angle)>.5;
    if(u>=0&&u<=1&&Math.hypot(r.x-p.x,r.y-p.y)<40&&(entering||(continuing&&u>=previous.rideU-.00001&&u-previous.rideU<.4))){
-    r.rideId=z.id;r.rideU=u;if(entering){r.trickAt=0;r.trickKind=-1;}return 0;
+    r.rideId=z.id;r.rideU=u;if(entering){r.trickAt=0;r.trickKind=-1;r.trickCombo=0;r.trickCounted=false;}return 0;
    }
   }
   r.rideId=-1;r.rideU=0;
-  if(old&&requested===-1&&previous.rideU>.65&&Math.hypot(r.x-old.b.x,r.y-old.b.y)<100&&r.t>=old.end-.003&&r.t<old.end+.02)return r.trickAt?3000:2000;
+  if(old&&requested===-1&&previous.rideU>.65&&Math.hypot(r.x-old.b.x,r.y-old.b.y)<100&&r.t>=old.end-.003&&r.t<old.end+.02)return trickBoost(r,2)*1000;
   return 0;
  }
  const passHistory=new WeakMap();
@@ -137,5 +138,7 @@
    h.ahead.set(o,gap);
   }return reward;
  }
- const api={overtakeReward,outlines,items,build,point,height,contactPair,lapsForLength,drafting,crossing,shortcuts,onShortcut,roadClearance,canFore,foreShot,forePose,foreContact,flowAction,rushGate,jumpZones,rampState,airLift,racePosition,positionItem,usableItem,stuntRoutes,ridePose,rideEntry,validateRide,railWindow};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
+ function completeTrick(r,age){if(r.trickCounted||age<.65)return false;r.trickCounted=true;r.trickCombo=Math.min(3,(r.trickCombo||0)+1);return true;}
+ function trickBoost(r,base=1.8){return r.trickCombo>0?3+(Math.min(3,r.trickCombo)-1)*.5:base;}
+ const api={completeTrick,trickBoost,foreTiming,overtakeReward,outlines,items,build,point,height,contactPair,lapsForLength,drafting,crossing,shortcuts,onShortcut,roadClearance,canFore,foreShot,forePose,foreContact,flowAction,rushGate,jumpZones,rampState,airLift,racePosition,positionItem,usableItem,stuntRoutes,ridePose,rideEntry,validateRide,railWindow};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.KartTracks=api;
 })(typeof window!=='undefined'?window:globalThis);

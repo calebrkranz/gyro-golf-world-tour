@@ -511,6 +511,7 @@ io.on("connection", (socket) => {
     const r=race.states[socket.data.playerIndex];if(!r||r.finished||now-r.lastAt<30)return;
     const {x,y,angle,speed,t}=payload||{};
     if(![x,y,angle,speed,t].every(Number.isFinite)||Math.abs(x)>(room.round.kart.worldBound||20000)||Math.abs(y)>(room.round.kart.worldBound||20000)||t<0||t>=1)return;
+    if(r.trickAt&&(r.airUntil>now||r.rideId>=0))KartTracks.completeTrick(r,(now-r.trickAt)/1000);
     const previousRideState={x:r.x,y:r.y,rideId:r.rideId,rideU:r.rideU};
     const budget=710*Math.min(.5,(now-r.lastAt)/1000)+35;
     if(Math.hypot(x-r.x,y-r.y)>budget&&!payload.rescue)return;
@@ -523,15 +524,15 @@ io.on("connection", (socket) => {
     const geometry=kartTrackCache.get(room.round.kart);
     const rideReward=KartTracks.validateRide(room.round.kart.stunts||[],r,previousRideState,payload.rideId,now,(()=>{const w=KartTracks.railWindow(room.round.kart.stunts||[],(now-race.startAt)/1000,room.round.kart.phase);return w.active&&w.id===payload.rideId;})());
     if(rideReward){r.boostUntil=Math.max(r.boostUntil,now+rideReward);kartFlow(room,r,'ride',now);}
-    if(r.airUntil&&r.airUntil<=now){r.airUntil=0;if(!(r.spinUntil>now)&&KartTracks.roadClearance(geometry,r.x,r.y)<104){r.boostUntil=Math.max(r.boostUntil,now+(r.trickAt?3000:1800));kartFlow(room,r,'jump',now);}}
-    const ramp=KartTracks.rampState(geometry,room.round.kart.jumps||[],r);if(ramp?.launch&&now>(r.jumpReady||0)){r.trickAt=0;r.trickKind=-1;r.airUntil=now+2000;r.jumpReady=now+5000;}
+    if(r.airUntil&&r.airUntil<=now){r.airUntil=0;if(!(r.spinUntil>now)&&KartTracks.roadClearance(geometry,r.x,r.y)<104){r.boostUntil=Math.max(r.boostUntil,now+KartTracks.trickBoost(r,1.8)*1000);kartFlow(room,r,'jump',now);}}
+    const ramp=KartTracks.rampState(geometry,room.round.kart.jumps||[],r);if(ramp?.launch&&now>(r.jumpReady||0)){r.trickAt=0;r.trickKind=-1;r.trickCombo=0;r.trickCounted=false;r.airSpeed=r.speed;r.airUntil=now+2000;r.jumpReady=now+5000;}
 
     const seconds=(now-race.startAt)/1000;
     if(now/1000-(r.flowAt||0)>12)r.flowTypes=[];
     for(let i=0;i<8;i++){const gate=KartTracks.rushGate(geometry,room.round.kart,seconds,i);if(gate.active&&r.speed>130&&Math.hypot(r.x-gate.x,r.y-gate.y)<34&&r['rush'+i]!==gate.cycle){r['rush'+i]=gate.cycle;r.boostUntil=Math.max(r.boostUntil,now+1500);kartFlow(room,r,'gate',now);io.to(room.code).emit('kart:item',{index:r.index,item:'RUSH GATE'});}}
 
-    if(!(r.rideId>=0)&&r.speed>120&&seconds>(r.nextFore||7+r.index*2)&&!(r.spinUntil>now)&&!(r.airUntil>now)&&KartTracks.canFore(geometry,r,race.foreShots,seconds,room.round.kart.courseLength)){r.nextFore=seconds+14;race.foreShots.push(KartTracks.foreShot(geometry,room.round.kart,r,seconds,room.round.kart.courseLength,++race.foreId));}
-    race.foreShots=race.foreShots.filter(s=>seconds-s.start<4).slice(-12);
+    if(!(r.rideId>=0)&&r.speed>120&&seconds>(r.nextFore||KartTracks.foreTiming.initial+r.index*1.4)&&!(r.spinUntil>now)&&!(r.airUntil>now)&&KartTracks.canFore(geometry,r,race.foreShots,seconds,room.round.kart.courseLength)){r.nextFore=seconds+KartTracks.foreTiming.cooldown;race.foreShots.push(KartTracks.foreShot(geometry,room.round.kart,r,seconds,room.round.kart.courseLength,++race.foreId));}
+    race.foreShots=race.foreShots.filter(s=>seconds-s.start<KartTracks.foreTiming.lifetime).slice(-12);
     for(const shot of race.foreShots){if(shot.results.includes(r.index))continue;const h=KartTracks.forePose(geometry,room.round.kart,shot,seconds),contact=r.airUntil>now||r.rideId>=0?'':KartTracks.foreContact(h,r);if(contact){shot.results.push(r.index);if(contact==='hit')kartImpact(room,r,1.3,'GIANT GOLF BALL');else{r.boostUntil=Math.max(r.boostUntil,now+1800);kartFlow(room,r,'dodge',now);io.to(room.code).emit('kart:item',{index:r.index,item:'DODGE BOOST'});}}}
     for(let i=0;i<5;i++){const pad=kartPoint(room.round.kart,.1+i*.2,(i%2?1:-1)*35);if(now>(r.padReady||0)&&Math.hypot(r.x-pad.x,r.y-pad.y)<38){r.padReady=now+4000;r.boostUntil=Math.max(r.boostUntil,now+1600);}}
     if(KartTracks.overtakeReward(r,race.states,now/1000)&&!(r.spinUntil>now)){r.boostUntil=Math.max(r.boostUntil,now+1200);io.to(room.code).emit('kart:item',{index:r.index,item:'CLEAN PASS BOOST'});}
@@ -543,7 +544,7 @@ io.on("connection", (socket) => {
     touch(room);
   });
   socket.on('kart:launch',()=>{const room=rooms.get(socket.data.roomCode),race=room?.kart,r=race?.states[socket.data.playerIndex],left=(race?.startAt||0)-Date.now();if(r&&room.status==='playing'&&left>150&&left<650){r.launchReady=true;r.boostUntil=race.startAt+1500;}});
-  socket.on('kart:trick',()=>{const room=rooms.get(socket.data.roomCode),r=room?.kart?.states[socket.data.playerIndex],now=Date.now();if(!r||room.status!=='playing'||r.finished||(r.trickAt&&now-r.trickAt<180)||!(r.rideId>=0||(r.airUntil>now+800&&r.airUntil<now+1900)))return;r.trickAt=now;r.trickKind=((r.trickKind??-1)+1)%3;io.to(room.code).emit('kart:item',{index:r.index,item:['SPIN','FRONT FLIP','BACKFLIP'][r.trickKind]});});
+  socket.on('kart:trick',()=>{const room=rooms.get(socket.data.roomCode),r=room?.kart?.states[socket.data.playerIndex],now=Date.now();if(!r||room.status!=='playing'||r.finished||(r.trickAt&&now-r.trickAt<650)||!(r.rideId>=0||(r.airUntil>now+680&&r.airUntil<now+1990)))return;if(r.trickAt)KartTracks.completeTrick(r,(now-r.trickAt)/1000);r.trickCounted=false;r.trickAt=now;r.trickKind=((r.trickKind??-1)+1)%3;io.to(room.code).emit('kart:item',{index:r.index,item:['SPIN','FRONT FLIP','BACKFLIP'][r.trickKind]});});
   socket.on('kart:use',()=>{
     const room=rooms.get(socket.data.roomCode),race=room?.kart,now=Date.now();if(!race||now<race.startAt)return;
     const r=race.states[socket.data.playerIndex];if(!r||r.finished||!r.item||now<r.itemReadyAt)return;
